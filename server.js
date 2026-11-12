@@ -444,9 +444,22 @@ app.get('/api/presets', async (_req, res) => {
   }
 });
 
+const BASE62_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+function generateAlphanumericId(length = 12) {
+  const bytes = crypto.randomBytes(length);
+  let out = '';
+  for (let i = 0; i < length; i++) {
+    out += BASE62_ALPHABET[bytes[i] % BASE62_ALPHABET.length];
+  }
+  return out;
+}
+
 app.get('/api/presets/:id', async (req, res) => {
   try {
-    const id = String(req.params.id || '').replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
+    const id = String(req.params.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    if (!id) {
+      return res.status(400).json({ error: 'Invalid preset ID' });
+    }
     const filePath = path.join(CUSTOM_PRESETS_DIR, `${id}.json`);
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'Preset not found' });
@@ -465,11 +478,10 @@ app.post('/api/presets', express.json({ limit: '5mb' }), async (req, res) => {
       return res.status(400).json({ error: 'Invalid preset payload' });
     }
 
-    const rawId = preset.id || preset.meta?.name || `custom_${Date.now()}`;
+    const rawId = preset.id || generateAlphanumericId(12);
     const id = String(rawId)
-      .toLowerCase()
       .trim()
-      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/[^a-zA-Z0-9_-]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
     if (!id) {
@@ -481,18 +493,27 @@ app.post('/api/presets', express.json({ limit: '5mb' }), async (req, res) => {
       version: preset.version || '1.0',
       id,
       meta: {
-        name: preset.meta?.name || id,
-        title: preset.meta?.title || preset.meta?.name || id,
+        name: preset.meta?.name || 'Untitled Preset',
+        title: preset.meta?.title || preset.meta?.name || 'Untitled Preset',
         description: preset.meta?.description || 'custom visual preset',
         aspectRatio: preset.meta?.aspectRatio || '9:16',
-        badge: preset.meta?.badge || 'Custom',
-        author: preset.meta?.author || 'local',
+        badge: 'Custom',
+        ownerId: preset.meta?.ownerId || 'local',
+        author: preset.meta?.author === 'official' ? 'local' : (preset.meta?.author || 'local'),
+        forkedFrom: preset.meta?.forkedFrom && typeof preset.meta.forkedFrom === 'object'
+          ? {
+              id: String(preset.meta.forkedFrom.id || ''),
+              name: String(preset.meta.forkedFrom.name || ''),
+              author: String(preset.meta.forkedFrom.author || '')
+            }
+          : null,
         thumbnail: typeof preset.meta?.thumbnail === 'string' && preset.meta.thumbnail.startsWith('data:image/')
           ? preset.meta.thumbnail
           : null,
         createdAt: preset.meta?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       },
+      modules: preset.modules && typeof preset.modules === 'object' ? preset.modules : {},
       features: preset.features || {
         timeline: {
           markers: [
@@ -524,7 +545,7 @@ app.post('/api/presets', express.json({ limit: '5mb' }), async (req, res) => {
 
 app.delete('/api/presets/:id', async (req, res) => {
   try {
-    const id = String(req.params.id || '').replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
+    const id = String(req.params.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
     const filePath = path.join(CUSTOM_PRESETS_DIR, `${id}.json`);
     if (fs.existsSync(filePath)) {
       await fs.promises.unlink(filePath);

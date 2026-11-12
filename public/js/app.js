@@ -112,23 +112,25 @@
     importPresetFileInput: document.getElementById('importPresetFileInput')
   };
 
-  // initialize active template from registry
-  // parse url search params for direct preset launching from gallery
+  // initialize active template from registry (defer missing custom presets to async storage check)
   const urlParams = new URLSearchParams(window.location.search);
   const requestedPreset = urlParams.get('preset');
   const activeTemplateId = requestedPreset || localStorage.getItem('samplevis_active_template_id') || 'constellations';
-  const initialTemplateId = window.templateRegistry.get(activeTemplateId) ? activeTemplateId : 'constellations';
-  window.templateRegistry.setTemplate(
-    initialTemplateId,
-    previewCanvas,
-    state,
-    els.templateControlsContainer
-  );
-  visualizer = window.templateRegistry.activeTemplate;
-  if (els.topPresetNameInput && visualizer) {
-    els.topPresetNameInput.value = visualizer.name;
+  if (window.templateRegistry.get(activeTemplateId)) {
+    window.templateRegistry.setTemplate(
+      activeTemplateId,
+      previewCanvas,
+      state,
+      els.templateControlsContainer
+    );
+    visualizer = window.templateRegistry.activeTemplate;
+    if (els.topPresetNameInput && visualizer) {
+      els.topPresetNameInput.value = visualizer.name;
+    }
+    applyTemplateModules(visualizer);
+  } else if (els.topPresetNameInput) {
+    els.topPresetNameInput.value = 'loading...';
   }
-  applyTemplateModules(visualizer);
 
   function applyTemplateModules(tpl) {
     if (!tpl) return;
@@ -236,7 +238,7 @@
     const startAtDrop = visualizer?.modules?.clips?.startAtDrop === true || visualizer?.id === 'constellations';
     if (startAtDrop && t < dropTime) return null;
 
-    const cutMode = visualizer.params.cutMode || 'chord';
+    const cutMode = visualizer?.params?.cutMode || 'chord';
     if (cutMode === 'single' || state.selectedClipIds.length === 1) {
       return videoPool[0];
     }
@@ -277,12 +279,12 @@
 
     const dur = activeVid.duration || 6.0;
 
-    if (visualizer.params.speedRamping) {
+    if (visualizer?.params?.speedRamping && typeof visualizer.getSpeedRampInfo === 'function') {
       const ramp = visualizer.getSpeedRampInfo(t);
       return ramp.clipTime % Math.max(0.5, dur);
     }
 
-    const cutMode = visualizer.params.cutMode || 'chord';
+    const cutMode = visualizer?.params?.cutMode || 'chord';
     let cutStartTime = dropTime;
 
     if (cutMode === 'chord') {
@@ -315,7 +317,7 @@
     els.midiSourceBadge.textContent = (state.project?.sourceType || 'midi').toLowerCase();
 
     tracks.forEach((tr) => {
-      const isChecked = visualizer.selectedTrackIds.has(tr.id);
+      const isChecked = visualizer?.selectedTrackIds ? visualizer.selectedTrackIds.has(tr.id) : Boolean(tr.defaultSelected);
       const row = document.createElement('div');
       row.className = `track-item${isChecked ? ' active' : ''}`;
       row.innerHTML = `
@@ -328,7 +330,9 @@
       row.addEventListener('click', (e) => {
         const cb = row.querySelector('input[type="checkbox"]');
         if (e.target !== cb) cb.checked = !cb.checked;
-        visualizer.toggleTrack(tr.id, cb.checked);
+        if (visualizer && typeof visualizer.toggleTrack === 'function') {
+          visualizer.toggleTrack(tr.id, cb.checked);
+        }
         row.classList.toggle('active', cb.checked);
       });
       els.trackListContainer.appendChild(row);
@@ -433,7 +437,7 @@
       const selIndex = state.selectedClipIds.indexOf(clip.id);
       const card = document.createElement('div');
       card.className = `clip-card${isSelected ? ' selected' : ''}`;
-      const orderBadge = isSelected && visualizer.params.cutMode !== 'single'
+      const orderBadge = isSelected && visualizer?.params?.cutMode !== 'single'
         ? `<span class="clip-badge-order">${selIndex + 1}</span>`
         : '';
       const isFav = Boolean(clip.favorite);
@@ -626,15 +630,19 @@
       els.headerPreviewTag.textContent = `[${num}${project.title || 'untitled'} · ${project.brand || 'aesttc'}]`;
     }
 
-    visualizer.setProject(project);
-    if (typeof visualizer.setActiveVideos === 'function') {
-      visualizer.setActiveVideos(videoPool);
+    if (visualizer) {
+      if (typeof visualizer.setProject === 'function') {
+        visualizer.setProject(project);
+      }
+      if (typeof visualizer.setActiveVideos === 'function') {
+        visualizer.setActiveVideos(videoPool);
+      }
     }
 
     const initialClips = (recommendedClips && recommendedClips.length ? recommendedClips : state.clips).slice(0, 4);
     if (initialClips.length > 0) {
       state.selectedClipIds =
-        visualizer.params.cutMode === 'single'
+        visualizer?.params?.cutMode === 'single'
           ? [initialClips[0].id]
           : initialClips.map((c) => c.id);
     }
@@ -685,7 +693,7 @@
         if (activeVid.paused) {
           activeVid.play().catch(() => {});
         }
-        if (visualizer.params.speedRamping) {
+        if (visualizer?.params?.speedRamping && typeof visualizer.getSpeedRampInfo === 'function') {
           const ramp = visualizer.getSpeedRampInfo(state.currentTime);
           activeVid.playbackRate = Math.max(0.25, Math.min(4.0, ramp.instSpeed));
         } else if (activeVid.playbackRate !== 1.0) {
@@ -695,7 +703,9 @@
           if (v !== activeVid && !v.paused) v.pause();
         });
       }
-      visualizer.renderFrame(state.currentTime, activeVid);
+      if (visualizer && typeof visualizer.renderFrame === 'function') {
+        visualizer.renderFrame(state.currentTime, activeVid);
+      }
     }
     requestAnimationFrame(tick);
   }
@@ -1568,14 +1578,58 @@
       });
     }
 
-    if (window.presetService) {
-      window.presetService.onPresetsChange(() => renderGalleryCards());
-      window.presetService.syncWithBackend().then(async () => {
-        if (
-          activeTemplateId &&
-          activeTemplateId !== window.templateRegistry.activeTemplateId &&
-          window.templateRegistry.get(activeTemplateId)
-        ) {
+    const presetErrorModal = document.getElementById('presetErrorModal');
+    const presetErrorMessage = document.getElementById('presetErrorMessage');
+    const presetErrorLoadDefaultBtn = document.getElementById('presetErrorLoadDefaultBtn');
+
+    function showPresetError(missingId) {
+      if (els.topPresetNameInput) els.topPresetNameInput.value = 'error';
+      if (presetErrorMessage) {
+        presetErrorMessage.textContent = `preset "${missingId}" could not be found in local storage or on the server.`;
+      }
+      if (presetErrorModal) presetErrorModal.hidden = false;
+    }
+
+    if (presetErrorLoadDefaultBtn) {
+      presetErrorLoadDefaultBtn.addEventListener('click', async () => {
+        if (presetErrorModal) presetErrorModal.hidden = true;
+        window.history.replaceState(null, '', '/');
+        await window.templateRegistry.setTemplate(
+          'constellations',
+          previewCanvas,
+          state,
+          els.templateControlsContainer
+        );
+        visualizer = window.templateRegistry.activeTemplate;
+        if (els.topPresetNameInput && visualizer) {
+          els.topPresetNameInput.value = visualizer.name;
+        }
+        applyTemplateModules(visualizer);
+        updateMetadataToVisualizer();
+        const activeVid = getActiveVideoForTime(state.currentTime);
+        if (visualizer && typeof visualizer.renderFrame === 'function') {
+          visualizer.renderFrame(state.currentTime, activeVid);
+        }
+      });
+    }
+
+    async function resolveInitialPreset() {
+      if (!window.presetService) {
+        if (!window.templateRegistry.activeTemplate) showPresetError(activeTemplateId);
+        return;
+      }
+
+      if (activeTemplateId && !window.templateRegistry.get(activeTemplateId)) {
+        await window.presetService.getPresetById(activeTemplateId);
+      }
+
+      await window.presetService.syncWithBackend();
+
+      if (
+        activeTemplateId &&
+        activeTemplateId !== window.templateRegistry.activeTemplateId
+      ) {
+        if (window.templateRegistry.get(activeTemplateId)) {
           await window.templateRegistry.setTemplate(
             activeTemplateId,
             previewCanvas,
@@ -1586,15 +1640,25 @@
           if (els.topPresetNameInput && visualizer) {
             els.topPresetNameInput.value = visualizer.name;
           }
+          if (els.speedRampToggle) els.speedRampToggle.checked = Boolean(visualizer?.params?.speedRamping);
+          if (els.dropGlitchToggle) els.dropGlitchToggle.checked = Boolean(visualizer?.params?.dropGlitch !== false);
+          if (els.autoFrameToggle) els.autoFrameToggle.checked = Boolean(visualizer?.params?.autoFrame !== false);
           applyTemplateModules(visualizer);
           updateMetadataToVisualizer();
           const activeVid = getActiveVideoForTime(state.currentTime);
           if (visualizer && typeof visualizer.renderFrame === 'function') {
             visualizer.renderFrame(state.currentTime, activeVid);
           }
+        } else {
+          showPresetError(activeTemplateId);
         }
-        renderGalleryCards();
-      });
+      }
+      renderGalleryCards();
+    }
+
+    if (window.presetService) {
+      window.presetService.onPresetsChange(() => renderGalleryCards());
+      resolveInitialPreset();
     }
 
     function openDesignModal() {
@@ -2075,7 +2139,10 @@
           );
 
           undoStack.push(previous);
-          generated.id = previous.id === 'constellations' ? `viz_${Date.now()}` : previous.id;
+          const freshId = window.presetService?.generatePresetId
+            ? window.presetService.generatePresetId(12)
+            : `viz_${Date.now()}`;
+          generated.id = previous.id === 'constellations' ? freshId : previous.id;
           if (!generated.meta) generated.meta = {};
           generated.meta.badge = 'Viz AI';
 
@@ -2099,23 +2166,10 @@
       });
     }
 
-    const BUILTIN_IDS = new Set([
-      'constellations',
-      'cinematic-minimal',
-      'anime-chord-flow',
-      'aura-spectrum',
-      'new_blank'
-    ]);
-
     async function saveActivePreset(triggerBtn = null) {
       const current = getActivePresetCopy();
       const inputName = els.topPresetNameInput?.value.trim();
       const chosenName = inputName || current.meta?.name || 'Custom Preset';
-
-      if (BUILTIN_IDS.has(current.id)) {
-        const slug = chosenName.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
-        current.id = BUILTIN_IDS.has(slug) || !slug ? `custom_${Date.now()}` : slug;
-      }
 
       current.meta = {
         ...(current.meta || {}),
@@ -2129,6 +2183,7 @@
         if (window.presetService) {
           const saved = await window.presetService.savePreset(current, previewCanvas);
           await hotReloadPreset(saved);
+          window.history.replaceState(null, '', `/?preset=${encodeURIComponent(saved.id)}`);
           setStatus(`saved "${saved.meta.name}"`, 'success');
           if (triggerBtn) {
             const orig = triggerBtn.textContent;

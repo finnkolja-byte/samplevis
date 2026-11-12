@@ -30,17 +30,43 @@
     return dbPromise;
   }
 
+  const BASE62_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+
   class PresetService {
     constructor() {
       this.inMemoryCache = new Map();
       this.listeners = [];
+      this.channel = typeof BroadcastChannel === 'function'
+        ? new BroadcastChannel('samplevis_presets')
+        : null;
+      if (this.channel) {
+        this.channel.onmessage = () => {
+          this.syncWithBackend();
+        };
+      }
+    }
+
+    generatePresetId(length = 12) {
+      let out = '';
+      if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+        const bytes = new Uint8Array(length);
+        crypto.getRandomValues(bytes);
+        for (let i = 0; i < length; i++) {
+          out += BASE62_ALPHABET[bytes[i] % BASE62_ALPHABET.length];
+        }
+      } else {
+        for (let i = 0; i < length; i++) {
+          out += BASE62_ALPHABET[Math.floor(Math.random() * BASE62_ALPHABET.length)];
+        }
+      }
+      return out;
     }
 
     onPresetsChange(fn) {
       if (typeof fn === 'function') this.listeners.push(fn);
     }
 
-    _notify() {
+    _notify(broadcast = false) {
       this.listeners.forEach((fn) => {
         try {
           fn();
@@ -48,6 +74,13 @@
           console.error('[PresetService] Listener error:', err);
         }
       });
+      if (broadcast && this.channel) {
+        try {
+          this.channel.postMessage({ type: 'PRESETS_UPDATED', ts: Date.now() });
+        } catch {
+          // ignore closed channel
+        }
+      }
     }
 
     async getAllLocal() {
@@ -155,17 +188,76 @@
       }
     }
 
+    isOfficialOrReadOnly(id, presetData) {
+      if (window.STARTER_PRESET_DEFINITIONS && window.STARTER_PRESET_DEFINITIONS[id]) {
+        return true;
+      }
+      if (window.STARTER_PRESETS && window.STARTER_PRESETS[id]) {
+        return true;
+      }
+      if (presetData?.meta?.ownerId && presetData.meta.ownerId !== 'local') {
+        return true;
+      }
+      return false;
+    }
+
+    async getPresetById(id) {
+      if (!id) return null;
+      if (this.inMemoryCache.has(id)) {
+        return this.inMemoryCache.get(id);
+      }
+
+      const localPresets = await this.getAllLocal();
+      const foundLocal = localPresets.find((p) => p.id === id);
+      if (foundLocal) {
+        this.inMemoryCache.set(foundLocal.id, foundLocal);
+        if (window.templateRegistry) {
+          window.templateRegistry.registerPreset(foundLocal);
+        }
+        return foundLocal;
+      }
+
+      try {
+        const res = await fetch(`/api/presets/${encodeURIComponent(id)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.preset && data.preset.id) {
+            await this.saveLocal(data.preset);
+            if (window.templateRegistry) {
+              window.templateRegistry.registerPreset(data.preset);
+            }
+            return data.preset;
+          }
+        }
+      } catch (err) {
+        console.warn('[PresetService] Direct fetch preset failed:', err.message);
+      }
+      return null;
+    }
+
     async savePreset(presetData, canvasEl = null) {
       if (!presetData || typeof presetData !== 'object') {
         throw new Error('Invalid preset data');
       }
 
-      const rawId = presetData.id || presetData.meta?.name || `custom_${Date.now()}`;
-      const id = String(rawId)
-        .toLowerCase()
+      const rawId = presetData.id || this.generatePresetId(12);
+      let id = String(rawId)
         .trim()
-        .replace(/[^a-z0-9_-]+/g, '-')
+        .replace(/[^a-zA-Z0-9_-]+/g, '-')
         .replace(/^-+|-+$/g, '');
+
+      // fork-on-save: never overwrite official or another user's template; mint new alphanumeric id
+      let forkedFrom = presetData.meta?.forkedFrom || null;
+      if (!id || this.isOfficialOrReadOnly(id, presetData)) {
+        if (id && this.isOfficialOrReadOnly(id, presetData)) {
+          forkedFrom = {
+            id,
+            name: presetData.meta?.name || id,
+            author: presetData.meta?.author || 'official'
+          };
+        }
+        id = this.generatePresetId(12);
+      }
 
       const capturedThumb = canvasEl ? this.captureThumbnail(canvasEl) : null;
       const thumbnail = capturedThumb ||
@@ -177,16 +269,21 @@
         version: presetData.version || '1.0',
         id,
         meta: {
-          name: presetData.meta?.name || id,
-          title: presetData.meta?.title || presetData.meta?.name || id,
+          name: forkedFrom && (!presetData.meta?.name || presetData.meta.name === forkedFrom.name)
+            ? `${forkedFrom.name} (copy)`
+            : (presetData.meta?.name || 'Untitled Preset'),
+          title: presetData.meta?.title || presetData.meta?.name || 'Untitled Preset',
           description: presetData.meta?.description || 'custom visual preset',
           aspectRatio: presetData.meta?.aspectRatio || '9:16',
-          badge: presetData.meta?.badge || 'Custom',
-          author: presetData.meta?.author || 'local',
+          badge: 'Custom',
+          ownerId: 'local',
+          author: presetData.meta?.author === 'official' ? 'local' : (presetData.meta?.author || 'local'),
+          forkedFrom,
           thumbnail,
-          createdAt: presetData.meta?.createdAt || new Date().toISOString(),
+          createdAt: forkedFrom ? new Date().toISOString() : (presetData.meta?.createdAt || new Date().toISOString()),
           updatedAt: new Date().toISOString()
         },
+        modules: presetData.modules && typeof presetData.modules === 'object' ? presetData.modules : {},
         features: presetData.features || {
           timeline: {
             markers: [{ id: 'drop', label: 'drop', color: '#83ca90' }]
@@ -224,11 +321,14 @@
         window.templateRegistry.registerPreset(normalized);
       }
 
-      this._notify();
+      this._notify(true);
       return normalized;
     }
 
     async deletePreset(id) {
+      if (this.isOfficialOrReadOnly(id, null)) {
+        throw new Error('Cannot delete built-in official template');
+      }
       await this.deleteLocal(id);
       try {
         await fetch(`/api/presets/${encodeURIComponent(id)}`, { method: 'DELETE' });
@@ -240,7 +340,7 @@
         window.templateRegistry.templates.delete(id);
       }
 
-      this._notify();
+      this._notify(true);
     }
 
     exportPreset(presetId) {
