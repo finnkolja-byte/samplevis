@@ -1,7 +1,4 @@
-/**
- * Client-Side Audio, MIDI & Ableton Project Analyzer
- * Eliminates all server upload lag and allows instant 100% in-browser analysis.
- */
+// in-browser audio, midi, and ableton .als parser
 (function () {
   const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
@@ -11,11 +8,7 @@
     return `${name}${octave}`;
   }
 
-  /**
-   * Flexible sample filename parser.
-   * Extracts index number, title, musical key, and BPM from varied naming conventions.
-   * Returns null for missing metadata instead of hardcoding dummy values.
-   */
+  // pulls sample number, title, key, and bpm out of loop filenames
   function parseSampleFilename(filename) {
     if (!filename || typeof filename !== 'string') {
       return { sampleNumber: null, title: 'untitled', key: null, bpm: null };
@@ -27,21 +20,18 @@
     let bpm = null;
     let key = null;
 
-    // 1. Extract sample number (#1, 01 -, etc.)
     const numMatch = working.match(/(?:^|\s)#\s*(\d{1,4})\b/) || working.match(/^(\d{1,3})\s*[-–—]\s*/);
     if (numMatch) {
       sampleNumber = String(parseInt(numMatch[1], 10)).padStart(3, '0');
       working = working.replace(numMatch[0], ' ');
     }
 
-    // 2. Extract explicit bpm (132bpm, bpm 140, 140 bpm)
     const bpmExplicitMatch = working.match(/\b(?:bpm\s*(\d{2,3}(?:\.\d+)?)|(\d{2,3}(?:\.\d+)?)\s*bpm)\b/i);
     if (bpmExplicitMatch) {
       bpm = parseFloat(bpmExplicitMatch[1] || bpmExplicitMatch[2]);
       working = working.replace(bpmExplicitMatch[0], ' ');
     }
 
-    // 3. Extract musical key (C#, Bmaj, F# minor, Abm, Dmin, etc.)
     const keyRegex = /\b([A-G][#b]?)(?:\s*(major|minor|maj|min|moll|dur|m))?(?=[\s\-–—]|$)/i;
     const keyMatch = working.match(keyRegex);
     if (keyMatch && (keyMatch[2] || keyMatch[1].length > 1 || /\b(key|scale)\b/i.test(working))) {
@@ -52,7 +42,6 @@
       working = working.replace(keyMatch[0], ' ');
     }
 
-    // 4. Standalone bpm fallback (60 - 220)
     if (bpm === null) {
       const standaloneBpm = working.match(/\b([6-9]\d|1\d{2}|2[0-1]\d)\b/);
       if (standaloneBpm) {
@@ -61,7 +50,6 @@
       }
     }
 
-    // 5. Clean title
     let title = working
       .replace(/[-–—]+/g, ' ')
       .replace(/\s+/g, ' ')
@@ -74,10 +62,7 @@
     return { sampleNumber, title: title.toLowerCase(), key, bpm };
   }
 
-  /**
-   * Decodes an audio file in browser memory via Web Audio API,
-   * calculates 240 RMS peaks, detects bar-aligned drop and impact times.
-   */
+  // decodes audio via web audio api, builds a 240-point rms envelope, and finds the drop bar
   async function analyzeAudioFileInBrowser(audioFile, bpm = 120) {
     const arrayBuffer = await audioFile.arrayBuffer();
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -90,7 +75,6 @@
     const channelData = audioBuffer.getChannelData(0);
     const totalFrames = channelData.length;
 
-    // 1. 240 RMS waveform peaks
     const numPeaks = 240;
     const framesPerPeak = Math.max(1, Math.floor(totalFrames / numPeaks));
     const peaks = [];
@@ -111,7 +95,7 @@
     const maxPeak = Math.max(0.01, ...peaks);
     const normPeaks = peaks.map((p) => Number((p / maxPeak).toFixed(3)));
 
-    // 2. Bar Energies & Structural Drop Detection
+    // evaluate bar-to-bar energy jumps, weighting 4-bar phrase boundaries
     const secPerBar = (60 / bpm) * 4;
     const totalBars = Math.max(2, Math.round(duration / secPerBar));
     const barEnergies = [];
@@ -155,7 +139,6 @@
     const dropBar = bestBarIdx + 1;
     const dropTime = Number((bestBarIdx * secPerBar).toFixed(3));
 
-    // 3. Transient impact detection
     const impactTimes = [dropTime];
     const minImpactInterval = (60 / bpm) * 1.5;
     let lastImpact = dropTime;
@@ -171,7 +154,7 @@
       }
     }
 
-    // 4. Fallback notes from audio onsets
+    // rough zero-crossing pitch fallback if the user only drops an audio file without midi
     const fallbackNotes = [];
     const stepSec = 60 / bpm / 2;
     const totalSteps = Math.floor(duration / stepSec);
@@ -220,9 +203,7 @@
     };
   }
 
-  /**
-   * Unzips and parses an Ableton Live Set (.als) in browser memory via DecompressionStream
-   */
+  // .als files are gzipped xml; gunzip via DecompressionStream and query MidiTrack nodes
   async function parseAlsFileInBrowser(alsFile, fallbackBpm = 120) {
     let xmlText = '';
     try {
@@ -240,7 +221,6 @@
     const parser = new DOMParser();
     const doc = parser.parseFromString(xmlText, 'text/xml');
 
-    // Extract BPM
     let effectiveBpm = fallbackBpm;
     const manualTempo = doc.querySelector('Tempo > Manual');
     if (manualTempo) {
@@ -320,9 +300,7 @@
     };
   }
 
-  /**
-   * Lightweight Standard MIDI File (SMF) parser in pure browser JavaScript
-   */
+  // binary smf (.mid) parser
   async function parseMidiFileInBrowser(midiFile, fallbackBpm = 120) {
     const buffer = await midiFile.arrayBuffer();
     const bytes = new Uint8Array(buffer);
@@ -356,14 +334,14 @@
     if (readStr(4) !== 'MThd') {
       return { sourceType: 'midi', bpm: fallbackBpm, tracks: [] };
     }
-    const headerLen = readU32();
-    const format = readU16();
+    readU32(); // header length
+    readU16(); // format
     const numTracks = readU16();
     const division = readU16();
     const ticksPerBeat = division & 0x8000 ? 480 : division;
 
     let bpm = fallbackBpm;
-    let usPerQuarter = 500000; // 120 bpm default
+    let usPerQuarter = 500000;
 
     const tracks = [];
 
@@ -393,15 +371,12 @@
         const type = status & 0xf0;
 
         if (status === 0xff) {
-          // Meta event
           const metaType = bytes[pos++];
           const metaLen = readVlq();
           if (metaType === 0x03) {
-            // Track name
             trackName = '';
             for (let i = 0; i < metaLen; i++) trackName += String.fromCharCode(bytes[pos++]);
           } else if (metaType === 0x51 && metaLen === 3) {
-            // Set Tempo
             usPerQuarter = (bytes[pos] << 16) | (bytes[pos + 1] << 8) | bytes[pos + 2];
             pos += 3;
             bpm = Math.round((60000000 / usPerQuarter) * 10) / 10;
@@ -409,13 +384,12 @@
             pos += metaLen;
           }
         } else if (type === 0x90) {
-          // Note On
           const midi = bytes[pos++];
           const vel = bytes[pos++];
           if (vel > 0) {
             activeNotes.set(midi, { startTick: tick, vel });
           } else {
-            // Velocity 0 is Note Off
+            // velocity 0 note-on acts as note-off in running status streams
             const on = activeNotes.get(midi);
             if (on) {
               activeNotes.delete(midi);
@@ -436,9 +410,8 @@
             }
           }
         } else if (type === 0x80) {
-          // Note Off
           const midi = bytes[pos++];
-          pos++; // skip off velocity
+          pos++; // release velocity
           const on = activeNotes.get(midi);
           if (on) {
             activeNotes.delete(midi);
@@ -492,17 +465,13 @@
     };
   }
 
-  /**
-   * Extracts chord cut timestamps for harmony-synced anime cuts.
-   * Dynamically falls back to 50% midpoint if no dropTime is detected.
-   */
+  // finds chord change timestamps after the drop from bass/root tracks, chord tracks, or 2-bar intervals
   function extractChordCutTimes(tracks = [], dropTime = null, bpm = 120, duration = 30.0) {
     const effectiveBpm = bpm || 120;
     const effectiveDur = duration || 30.0;
     const effectiveDrop = (typeof dropTime === 'number' && !isNaN(dropTime)) ? dropTime : (effectiveDur * 0.5);
     const minInterval = (60 / effectiveBpm) * 1.8;
 
-    // 1. Bass / root note track
     const rootTrack = (tracks || []).find(
       (t) =>
         /bass|808|sub|root/i.test(t.name) &&
@@ -528,7 +497,6 @@
       }
     }
 
-    // 2. Chords / pad / keys
     const chordTrack = (tracks || []).find(
       (t) =>
         /chord|harmony|keys|pad|piano|rhodes/i.test(t.name) &&
@@ -556,7 +524,6 @@
       }
     }
 
-    // 3. Fallback: 2-bar intervals
     const barSec = (60 / effectiveBpm) * 4;
     const cuts = [];
     for (let t = effectiveDrop; t < effectiveDur - 0.5; t += barSec * 2) {
@@ -565,7 +532,6 @@
     return cuts.length > 0 ? cuts : [effectiveDrop];
   }
 
-  // Export to window
   window.clientAnalyzer = {
     parseSampleFilename,
     analyzeAudioFileInBrowser,

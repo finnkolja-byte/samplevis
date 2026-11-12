@@ -1,16 +1,12 @@
-/**
- * Cinematic Minimal Template
- * Tokyo letterbox aesthetic with anamorphic framing, HUD recording telemetry,
- * reactive audio spectrum waveforms, minimal Japanese typography, and film grain.
- */
+// anamorphic letterbox template with timecode hud, spectrum, and film grain
 (function () {
   class CinematicMinimalTemplate {
     constructor() {
       this.id = 'cinematic-minimal';
-      this.name = 'cinematic minimal';
-      this.subtitle = 'tokyo letterbox & aesthetic telemetry';
-      this.tagline = 'anamorphic matte bars · reactive audio spectrum · minimal typography & film grain';
-      this.badge = 'aesthetic';
+      this.name = 'Cinematic Minimal';
+      this.subtitle = 'Anamorphic letterbox & timecode HUD';
+      this.tagline = 'Anamorphic matte bars, audio spectrum, and 35mm grain';
+      this.badge = 'Aesthetic';
 
       this.canvas = null;
       this.ctx = null;
@@ -30,7 +26,7 @@
         autoFrame: true
       };
 
-      // Internal particles for dust motes in cinematic viewport
+      // floating dust motes in the viewport
       this.particles = [];
       this.lastCutTime = -1;
       this.lastCutIndex = -1;
@@ -72,7 +68,6 @@
     }
 
     rebuildNoteNodes() {
-      // Re-trigger particles
       this.initParticles();
     }
 
@@ -117,7 +112,7 @@
       const segDur = Math.max(0.4, segEnd - segStart);
       const segProgress = (time - segStart) / segDur;
 
-      // S-curve ramp: slow down at mid, accelerate at edges
+      // s-curve ramp: slow down at mid, accelerate at edges
       let speed = 1.0;
       if (segProgress < 0.2) {
         speed = 1.6 - (segProgress / 0.2) * 0.7; // 1.6 down to 0.9
@@ -154,19 +149,16 @@
       ctx.save();
       ctx.clearRect(0, 0, W, H);
 
-      // -------------------------------------------------------------
-      // 1. CINEMA VIEWPORT (Anime Clip with Grading & Zoom)
-      // -------------------------------------------------------------
+      // cinema viewport (clip with grading & zoom)
       ctx.save();
       ctx.beginPath();
       ctx.rect(0, viewY, W, viewH);
       ctx.clip();
 
-      // Viewport background
       ctx.fillStyle = '#0a0d12';
       ctx.fillRect(0, viewY, W, viewH);
 
-      // Camera motion: slow Ken Burns zoom pre-drop, punch zoom on drop
+      // slow ken burns zoom pre-drop, punch zoom on drop
       let zoom = 1.0;
       let panX = 0;
       let panY = 0;
@@ -176,11 +168,9 @@
         const preProgress = Math.min(1, time / Math.max(1, dropTime));
         zoom = 1.0 + preProgress * 0.08 * punchMult;
       } else {
-        // Drop impact zoom burst
         const dropImp = Math.max(0, 1 - dSinceDrop / 0.45);
         zoom = 1.04 + dropImp * 0.12 * punchMult;
 
-        // Subtle beat shake
         const beatSec = 60 / bpm;
         const beatFrac = (time % beatSec) / beatSec;
         if (beatFrac < 0.18) {
@@ -189,7 +179,6 @@
         }
       }
 
-      // Draw Video Clip
       if (activeVid && activeVid.readyState >= 2) {
         ctx.save();
         ctx.translate(W / 2 + panX, viewY + viewH / 2 + panY);
@@ -220,14 +209,13 @@
         ctx.restore();
       }
 
-      // Pre-drop atmospheric darkness tint
+      // pre-drop atmospheric dim
       if (!isPostDrop) {
         const dimRatio = 0.45 - (time / Math.max(1, dropTime)) * 0.15;
         ctx.fillStyle = `rgba(10, 14, 22, ${dimRatio.toFixed(3)})`;
         ctx.fillRect(0, viewY, W, viewH);
       }
 
-      // Cinematic Vignette in viewport
       const vigGrad = ctx.createRadialGradient(
         W / 2,
         viewY + viewH / 2,
@@ -241,7 +229,6 @@
       ctx.fillStyle = vigGrad;
       ctx.fillRect(0, viewY, W, viewH);
 
-      // Ambient Floating Dust Motes
       ctx.save();
       this.particles.forEach((p) => {
         p.y += p.vy * 0.016;
@@ -258,28 +245,19 @@
       });
       ctx.restore();
 
-      // Film Grain Overlay in viewport
       if (this.params.filmGrain > 0.05) {
         this.renderFilmGrain(ctx, 0, viewY, W, viewH, this.params.filmGrain);
       }
 
-      // Drop White Flash Burst
       if (isPostDrop && dSinceDrop < 0.25) {
         const flashAlpha = (1 - dSinceDrop / 0.25) * 0.75;
         ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha.toFixed(3)})`;
         ctx.fillRect(0, viewY, W, viewH);
       }
 
-      ctx.restore(); // end viewport clipping
+      ctx.restore();
 
-      // -------------------------------------------------------------
-      // 2. MINIMALIST TYPOGRAPHY & FLOATING HUD (Center / Pre-Drop)
-      // -------------------------------------------------------------
       this.renderTypography(ctx, time, isPostDrop, dSinceDrop, viewY, viewH, W, H);
-
-      // -------------------------------------------------------------
-      // 3. ANAMORPHIC LETTERBOX BARS (Matte Onyx with Hairline Accents)
-      // -------------------------------------------------------------
       this.renderLetterboxes(ctx, time, viewY, viewH, lbH, W, H, isPostDrop);
 
       ctx.restore();
@@ -299,16 +277,13 @@
       ctx.textBaseline = 'middle';
 
       if (!isPostDrop) {
-        // Pre-drop: Center elegant card layout
         const centerY = viewY + viewH * 0.58;
 
-        // Minimal track index: 01
         ctx.font = '500 24px "IBM Plex Mono", monospace';
         ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
         ctx.letterSpacing = '6px';
         ctx.fillText(`SAMPLE · #${num}`, W / 2, centerY - 80);
 
-        // Huge Title: MEADOWS
         ctx.font = '700 82px "Space Grotesk", sans-serif';
         ctx.fillStyle = '#ffffff';
         ctx.letterSpacing = '4px';
@@ -316,14 +291,12 @@
         ctx.shadowBlur = 18;
         ctx.fillText(title, W / 2, centerY);
 
-        // Japanese Aesthetic Subtitle
         ctx.font = '400 22px "Space Grotesk", sans-serif';
         ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
         ctx.letterSpacing = '5px';
         ctx.shadowBlur = 10;
         ctx.fillText('メドウズ · ORIGINAL SAMPLE MASTER', W / 2, centerY + 65);
 
-        // Key / BPM Tag Badge
         const tagY = centerY + 130;
         const tagText = `${key} · ${bpm} BPM`;
         ctx.font = '600 24px "IBM Plex Mono", monospace';
@@ -341,17 +314,14 @@
         ctx.fillStyle = '#ffffff';
         ctx.fillText(tagText, W / 2, tagY);
 
-        // Pre-drop audio reactive mini waveform beneath badge
         this.renderReactiveWaveform(ctx, W / 2 - 200, tagY + 50, 400, 36, time, accent);
       } else {
-        // Post-drop: Sleek Lower Third Tag
         const postAlpha = Math.min(1, dSinceDrop / 0.5);
         ctx.globalAlpha = postAlpha;
 
         const lowerY = viewY + viewH - 60;
         ctx.textAlign = 'left';
 
-        // Background glass backing pill
         ctx.fillStyle = 'rgba(8, 12, 18, 0.78)';
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
         ctx.lineWidth = 1;
@@ -383,14 +353,11 @@
 
       ctx.save();
 
-      // Top Letterbox Bar
       ctx.fillStyle = '#080a0e';
       ctx.fillRect(0, 0, W, lbH);
-
-      // Bottom Letterbox Bar
       ctx.fillRect(0, H - lbH, W, lbH);
 
-      // Hairline borders between viewport and letterboxes
+      // hairline borders between viewport and letterboxes
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -400,43 +367,34 @@
       ctx.lineTo(W, H - lbH);
       ctx.stroke();
 
-      // Top HUD telemetry
+      // top hud telemetry
       ctx.textBaseline = 'middle';
       const topContentY = lbH / 2;
 
-      // Left: REC [●] 24FPS · 35MM
       ctx.textAlign = 'left';
-      ctx.font = '600 20px "IBM Plex Mono", monospace';
+      ctx.fillStyle = accent;
+      ctx.fillRect(48, topContentY - 8, 4, 16);
+
+      ctx.font = '600 18px "IBM Plex Mono", monospace';
       ctx.letterSpacing = '2px';
-
-      // Blinking red recording dot (1Hz)
-      const isBlinkOn = (time % 1.0) < 0.65;
-      ctx.fillStyle = isBlinkOn ? '#ef4444' : 'rgba(239, 68, 68, 0.25)';
-      ctx.beginPath();
-      ctx.arc(58, topContentY, 6, 0, Math.PI * 2);
-      ctx.fill();
-
       ctx.fillStyle = '#ffffff';
-      ctx.fillText('REC', 74, topContentY);
+      ctx.fillText('35MM', 64, topContentY);
 
       ctx.font = '400 18px "IBM Plex Mono", monospace';
       ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
-      ctx.fillText('· 24.0 FPS · 35MM · SHUTTER 1/48', 126, topContentY);
+      ctx.fillText('· 24.0 FPS · SHUTTER 1/48', 124, topContentY);
 
-      // Right: [ #01 · AESTTC ]
       ctx.textAlign = 'right';
       ctx.font = '600 20px "IBM Plex Mono", monospace';
       ctx.fillStyle = '#ffffff';
       ctx.letterSpacing = '2px';
       ctx.fillText(`[ #${num} · ${brand} ]`, W - 48, topContentY);
 
-      // Bottom HUD telemetry
+      // bottom hud telemetry
       const botContentY = H - lbH / 2;
 
-      // Bottom Spectrum Bar along top boundary of lower letterbox
       this.renderLetterboxAudioSpectrum(ctx, 0, H - lbH - 12, W, 12, time, accent);
 
-      // Left: Timecode readout
       ctx.textAlign = 'left';
       ctx.font = '500 20px "IBM Plex Mono", monospace';
       ctx.letterSpacing = '2px';
@@ -447,7 +405,6 @@
       const curBar = Math.floor(time / secPerBar) + 1;
       ctx.fillText(`TC 00:${curSecStr} / 00:${durSecStr} [BAR ${curBar}]`, 48, botContentY);
 
-      // Right: Tokyo Studio Branding
       ctx.textAlign = 'right';
       ctx.font = '500 18px "IBM Plex Mono", monospace';
       ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
@@ -468,7 +425,7 @@
 
       ctx.save();
       for (let i = 0; i < bars; i++) {
-        // Mirrored spectrum frequency curve
+        // mirrored spectrum frequency curve
         const freqNorm = 1 - Math.abs((i / bars) - 0.5) * 2;
         const wave = Math.sin(time * 12 + i * 0.35) * 0.3 + 0.7;
         const h = Math.max(2, freqNorm * curEnergy * wave * height);
@@ -501,7 +458,7 @@
           ctx.fillRect(x + i * bw, y + (height - bh) / 2, bw - 3, bh);
         }
       } else {
-        // Oscilloscope wave
+        // oscilloscope wave
         ctx.strokeStyle = accent;
         ctx.lineWidth = 2.5;
         ctx.beginPath();
@@ -518,7 +475,7 @@
     }
 
     renderFilmGrain(ctx, x, y, w, h, intensity) {
-      // Procedural grain points
+      // procedural grain points
       ctx.save();
       const dotCount = Math.floor(w * h * 0.00035 * intensity);
       ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
@@ -559,45 +516,44 @@
       container.innerHTML = `
         <div class="slider-group">
           <div class="slider-row">
-            <label for="sliderLetterbox">letterbox bar height</label>
+            <label for="sliderLetterbox">Letterbox Height</label>
             <span class="slider-val" id="valLetterbox">${lbH}px</span>
           </div>
           <input type="range" id="sliderLetterbox" min="80" max="320" step="10" value="${lbH}" />
 
           <div class="slider-row">
-            <label for="sliderFilmGrain">35mm film grain</label>
+            <label for="sliderFilmGrain">35mm Film Grain</label>
             <span class="slider-val" id="valFilmGrain">${grainPct}%</span>
           </div>
           <input type="range" id="sliderFilmGrain" min="0" max="100" step="5" value="${grainPct}" />
 
           <div class="slider-row">
-            <label for="sliderPunch">camera punch &amp; drop impact</label>
+            <label for="sliderPunch">Camera Punch</label>
             <span class="slider-val" id="valPunch">${punchVal.toFixed(1)}x</span>
           </div>
           <input type="range" id="sliderPunch" min="0.2" max="2.5" step="0.1" value="${punchVal}" />
 
           <div class="slider-row" style="margin-top: 10px;">
-            <label>waveform visualizer style</label>
+            <label>Waveform Style</label>
           </div>
           <div class="segmented-control" role="radiogroup" style="margin-bottom: 12px;">
-            <button type="button" class="seg-btn ${waveStyle === 'bars' ? 'active' : ''}" data-style="bars" id="wfStyleBars">spectrum bars</button>
-            <button type="button" class="seg-btn ${waveStyle === 'wave' ? 'active' : ''}" data-style="wave" id="wfStyleWave">oscilloscope</button>
+            <button type="button" class="seg-btn ${waveStyle === 'bars' ? 'active' : ''}" data-style="bars" id="wfStyleBars">Spectrum Bars</button>
+            <button type="button" class="seg-btn ${waveStyle === 'wave' ? 'active' : ''}" data-style="wave" id="wfStyleWave">Oscilloscope</button>
           </div>
 
           <div class="slider-row">
-            <label>hud color accent</label>
+            <label>HUD Accent</label>
             <span class="slider-val" id="valAccent">${accent}</span>
           </div>
           <div class="color-palette-row" style="display: flex; gap: 8px; margin-top: 6px;">
-            <button type="button" class="btn-color-swatch ${accent === '#38bdf8' ? 'active' : ''}" data-color="#38bdf8" style="background:#38bdf8; width:28px; height:28px; border-radius:50%; border:2px solid ${accent === '#38bdf8' ? '#fff' : 'transparent'}; cursor:pointer;" title="ice cyan"></button>
-            <button type="button" class="btn-color-swatch ${accent === '#f59e0b' ? 'active' : ''}" data-color="#f59e0b" style="background:#f59e0b; width:28px; height:28px; border-radius:50%; border:2px solid ${accent === '#f59e0b' ? '#fff' : 'transparent'}; cursor:pointer;" title="amber sunset"></button>
-            <button type="button" class="btn-color-swatch ${accent === '#fb7185' ? 'active' : ''}" data-color="#fb7185" style="background:#fb7185; width:28px; height:28px; border-radius:50%; border:2px solid ${accent === '#fb7185' ? '#fff' : 'transparent'}; cursor:pointer;" title="rose bloom"></button>
-            <button type="button" class="btn-color-swatch ${accent === '#ffffff' ? 'active' : ''}" data-color="#ffffff" style="background:#ffffff; width:28px; height:28px; border-radius:50%; border:2px solid ${accent === '#ffffff' ? '#38bdf8' : 'transparent'}; cursor:pointer;" title="pure white"></button>
+            <button type="button" class="btn-color-swatch ${accent === '#38bdf8' ? 'active' : ''}" data-color="#38bdf8" style="background:#38bdf8; width:28px; height:28px; border-radius:6px; border:2px solid ${accent === '#38bdf8' ? '#fff' : 'transparent'}; cursor:pointer;" title="Ice Cyan"></button>
+            <button type="button" class="btn-color-swatch ${accent === '#f59e0b' ? 'active' : ''}" data-color="#f59e0b" style="background:#f59e0b; width:28px; height:28px; border-radius:6px; border:2px solid ${accent === '#f59e0b' ? '#fff' : 'transparent'}; cursor:pointer;" title="Amber"></button>
+            <button type="button" class="btn-color-swatch ${accent === '#fb7185' ? 'active' : ''}" data-color="#fb7185" style="background:#fb7185; width:28px; height:28px; border-radius:6px; border:2px solid ${accent === '#fb7185' ? '#fff' : 'transparent'}; cursor:pointer;" title="Rose"></button>
+            <button type="button" class="btn-color-swatch ${accent === '#ffffff' ? 'active' : ''}" data-color="#ffffff" style="background:#ffffff; width:28px; height:28px; border-radius:6px; border:2px solid ${accent === '#ffffff' ? '#38bdf8' : 'transparent'}; cursor:pointer;" title="White"></button>
           </div>
         </div>
       `;
 
-      // Event listeners
       const sliderLb = container.querySelector('#sliderLetterbox');
       const valLb = container.querySelector('#valLetterbox');
       sliderLb.addEventListener('input', (e) => {

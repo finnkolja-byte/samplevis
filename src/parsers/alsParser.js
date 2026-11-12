@@ -43,16 +43,14 @@ function collectMidiClips(node, results = []) {
   return results;
 }
 
-/**
- * Parses an Ableton Live Set (.als) file (gzipped XML) and extracts BPM + all MIDI tracks and arrangement notes.
- */
+// ableton .als files are gzipped xml; gunzip and walk the arrangement midi tracks
 function parseAlsFile(filePath, fallbackBpm = 120) {
   const rawBuffer = fs.readFileSync(filePath);
   let xmlString;
   try {
     xmlString = zlib.gunzipSync(rawBuffer).toString('utf8');
   } catch {
-    // In case the .als is already uncompressed XML
+    // already uncompressed xml
     xmlString = rawBuffer.toString('utf8');
   }
 
@@ -79,7 +77,7 @@ function parseAlsFile(filePath, fallbackBpm = 120) {
       trackNode?.Name?.UserName?.['@_Value'] ||
       `MIDI Track ${idx + 1}`;
 
-    // Only collect arrangement clips under MainSequencer -> ClipTimeable -> ArrangerAutomation -> Events
+    // stick to arrangement view clips under MainSequencer -> ClipTimeable -> ArrangerAutomation -> Events
     const arrangerEvents =
       trackNode?.DeviceChain?.MainSequencer?.ClipTimeable?.ArrangerAutomation?.Events;
     const clips = arrangerEvents ? collectMidiClips(arrangerEvents) : collectMidiClips(trackNode);
@@ -179,17 +177,14 @@ function parseAlsFile(filePath, fallbackBpm = 120) {
   };
 }
 
-/**
- * Extracts dynamic chord change timestamps after the drop.
- * Priority: Root bass tracks -> Chord/Pad tracks -> General note onsets -> 2-bar grid fallback.
- */
+// pulls chord change timestamps after the drop from bass/root tracks, chord pads, or a 2-bar grid fallback
 function extractChordCutTimes(tracks = [], dropTime = null, bpm = 120, duration = 30.0) {
   const effectiveBpm = bpm || 120;
   const effectiveDur = duration || 30.0;
   const effectiveDrop = (typeof dropTime === 'number' && !isNaN(dropTime)) ? dropTime : (effectiveDur * 0.5);
   const minInterval = (60 / effectiveBpm) * 1.5;
 
-  // 1. Dedicated root/bass tracks (e.g. 16-Instrument Rack, Bass, Sub, Root)
+  // check dedicated bass / root note tracks first
   const rootTrack = (tracks || []).find(
     (t) =>
       /bass|sub|rack|root/i.test(t.name) &&
@@ -215,7 +210,7 @@ function extractChordCutTimes(tracks = [], dropTime = null, bpm = 120, duration 
     }
   }
 
-  // 2. Chord / harmony / pad / keys / piano tracks
+  // otherwise look for chord / keys / pad tracks
   const chordTrack = (tracks || []).find(
     (t) =>
       /chord|harmony|keys|pad|piano|rhodes/i.test(t.name) &&
@@ -243,7 +238,7 @@ function extractChordCutTimes(tracks = [], dropTime = null, bpm = 120, duration 
     }
   }
 
-  // 3. Fallback: 2-bar intervals after drop
+  // fallback to 2-bar intervals after the drop
   const barSec = (60 / effectiveBpm) * 4;
   const cuts = [];
   for (let t = effectiveDrop; t < effectiveDur - 0.5; t += barSec * 2) {

@@ -31,10 +31,10 @@ for (const dir of [DATA_DIR, UPLOADS_DIR, EXPORTS_DIR, CLIPS_DIR, PRESETS_DIR]) 
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
-// Trust reverse proxy (Caddy + Authelia on surfacesrv)
+// caddy + authelia reverse proxy on homeserver
 app.set('trust proxy', 1);
 
-// Security headers via Helmet (configured to allow local Blob/Media/WebCodecs & Google Fonts)
+// allow blob/data urls for local webcodecs export and canvas video playback
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -55,7 +55,7 @@ app.use(
 
 app.use(express.json({ limit: '2mb' }));
 
-// Optional strict Authelia enforcement when REQUIRE_AUTHELIA=true
+// forward authelia headers when running behind the homeserver proxy
 app.use((req, res, next) => {
   const remoteUser = req.headers['remote-user'] || req.headers['x-forwarded-user'] || null;
   req.autheliaUser = remoteUser
@@ -75,7 +75,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rate limiters
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 120,
@@ -90,7 +89,6 @@ const fetchLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
-// Secure Multer storage with strict filename sanitization & extension allowlist
 function safeBasename(name) {
   return path
     .basename(name)
@@ -108,7 +106,7 @@ const sampleStorage = multer.diskStorage({
 
 const uploadSampleMiddleware = multer({
   storage: sampleStorage,
-  limits: { fileSize: 120 * 1024 * 1024 }, // 120 MB max for .wav / .als
+  limits: { fileSize: 120 * 1024 * 1024 }, // 120mb ceiling for uncompressed wavs
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (['.wav', '.mid', '.midi', '.als'].includes(ext)) {
@@ -151,7 +149,6 @@ const exportUploadMiddleware = multer({
   }
 });
 
-// Static assets
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(
   '/anime-clips',
@@ -167,7 +164,6 @@ app.use('/uploads', express.static(UPLOADS_DIR));
 app.use('/presets/meadows', express.static(PRESETS_DIR));
 app.use('/exports', express.static(EXPORTS_DIR));
 
-// Session / Auth endpoint
 app.get('/api/session', (req, res) => {
   res.json({
     authelia: req.autheliaUser,
@@ -179,7 +175,7 @@ app.get('/api/session', (req, res) => {
   });
 });
 
-// Starter project endpoint (#1 - meadows - bmaj - 132bpm)
+// default meadows project so the studio has something loaded on first boot
 let cachedStarterProject = null;
 app.get('/api/starter', (req, res) => {
   try {
@@ -254,7 +250,7 @@ app.get('/api/starter', (req, res) => {
   }
 });
 
-// Upload & analyze new sample (.wav + optional .mid or .als)
+// server-side sample analysis fallback (most analysis runs in clientAnalyzer.js now)
 app.post(
   '/api/analyze-sample',
   uploadSampleMiddleware.fields([
@@ -280,7 +276,7 @@ app.post(
         } else if (ext === '.mid' || ext === '.midi') {
           midiData = parseMidiFile(midiFile.path, meta.bpm);
         }
-        // Clean up the uploaded .als/.mid file after parsing so we don't waste disk space
+        // drop the temp midi/als file once parsed; we only need the extracted note json
         fs.unlink(midiFile.path, () => {});
       }
 
@@ -343,7 +339,7 @@ app.post(
   }
 );
 
-// Server-side audio muxing fallback when client lacks native WebCodecs AAC encoder
+// fallback ffmpeg audio muxer for browsers without webcodecs aac encoding
 app.post('/api/remux-audio', clipUploadMiddleware.single('video'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No video provided' });
@@ -379,7 +375,6 @@ app.post('/api/remux-audio', clipUploadMiddleware.single('video'), async (req, r
   }
 });
 
-// Anime clips library endpoints
 app.get('/api/clips', (_req, res) => {
   res.json({ clips: loadCatalog() });
 });
@@ -423,7 +418,6 @@ app.post('/api/clips/upload', clipUploadMiddleware.single('clip'), (req, res) =>
   }
 });
 
-// Toggle / set favorite on a clip
 app.post('/api/clips/:id/favorite', (req, res) => {
   try {
     const { id } = req.params;
@@ -441,7 +435,7 @@ app.post('/api/clips/:id/favorite', (req, res) => {
   }
 });
 
-// Postiz Multi-Platform Social Scheduling Endpoints
+// postiz social scheduling
 app.get('/api/social/status', async (_req, res) => {
   const status = await getPostizStatus();
   res.json(status);
@@ -469,7 +463,6 @@ app.post('/api/social/schedule', exportUploadMiddleware.single('video'), async (
   }
 });
 
-// Global error handler
 app.use((err, _req, res, _next) => {
   res.status(400).json({ error: err.message || 'Request error' });
 });

@@ -2,11 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const { midiToNoteName } = require('./alsParser');
 
-/**
- * flexible sample filename parser.
- * extracts index number, title, musical key, and bpm from varied naming conventions.
- * returns null for missing metadata instead of hardcoding dummy values.
- */
+// parses sample index, title, key, and bpm out of producer loop filenames
+// e.g. "#1 - meadows - bmaj - 132bpm.wav"
 function parseSampleFilename(filename) {
   if (!filename || typeof filename !== 'string') {
     return { sampleNumber: null, title: 'untitled', key: null, bpm: null };
@@ -18,21 +15,18 @@ function parseSampleFilename(filename) {
   let bpm = null;
   let key = null;
 
-  // 1. extract sample number
   const numMatch = working.match(/(?:^|\s)#\s*(\d{1,4})\b/) || working.match(/^(\d{1,3})\s*[-–—]\s*/);
   if (numMatch) {
     sampleNumber = String(parseInt(numMatch[1], 10)).padStart(3, '0');
     working = working.replace(numMatch[0], ' ');
   }
 
-  // 2. extract explicit bpm
   const bpmExplicitMatch = working.match(/\b(?:bpm\s*(\d{2,3}(?:\.\d+)?)|(\d{2,3}(?:\.\d+)?)\s*bpm)\b/i);
   if (bpmExplicitMatch) {
     bpm = parseFloat(bpmExplicitMatch[1] || bpmExplicitMatch[2]);
     working = working.replace(bpmExplicitMatch[0], ' ');
   }
 
-  // 3. extract musical key
   const keyRegex = /\b([A-G][#b]?)(?:\s*(major|minor|maj|min|moll|dur|m))?(?=[\s\-–—]|$)/i;
   const keyMatch = working.match(keyRegex);
   if (keyMatch && (keyMatch[2] || keyMatch[1].length > 1 || /\b(key|scale)\b/i.test(working))) {
@@ -43,7 +37,7 @@ function parseSampleFilename(filename) {
     working = working.replace(keyMatch[0], ' ');
   }
 
-  // 4. standalone bpm fallback (60 - 220)
+  // bare number in typical tempo range if "bpm" wasn't written out
   if (bpm === null) {
     const standaloneBpm = working.match(/\b([6-9]\d|1\d{2}|2[0-1]\d)\b/);
     if (standaloneBpm) {
@@ -52,7 +46,6 @@ function parseSampleFilename(filename) {
     }
   }
 
-  // 5. clean title
   let title = working
     .replace(/[-–—]+/g, ' ')
     .replace(/\s+/g, ' ')
@@ -65,12 +58,8 @@ function parseSampleFilename(filename) {
   return { sampleNumber, title: title.toLowerCase(), key, bpm };
 }
 
-/**
- * Reads a PCM/IEEE Float WAV file header & samples to:
- * 1. Compute exact audio duration & envelope waveform peaks
- * 2. Auto-detect the "Explosion of Prettiness" drop timestamp aligned to bar boundaries
- * 3. Provide an audio-to-MIDI onset/pitch fallback if no .mid or .als is supplied
- */
+// reads wav headers & pcm data to build the 240-point waveform envelope,
+// find the main structural drop bar, and approximate notes if no midi/als was dropped
 function analyzeWavFile(filePath, bpm = 120) {
   const buf = fs.readFileSync(filePath);
   if (buf.length < 44 || buf.toString('ascii', 0, 4) !== 'RIFF') {
@@ -132,7 +121,7 @@ function analyzeWavFile(filePath, bpm = 120) {
     return 0;
   }
 
-  // 1. Compute 240 waveform RMS peaks for the UI timeline
+  // downsample into 240 rms windows for the timeline bar graph
   const numPeaks = 240;
   const framesPerPeak = Math.max(1, Math.floor(totalFrames / numPeaks));
   const peaks = [];
@@ -149,11 +138,9 @@ function analyzeWavFile(filePath, bpm = 120) {
     peaks.push(Number(Math.sqrt(sumSq / Math.max(1, count)).toFixed(4)));
   }
 
-  // Normalize peaks 0..1
   const maxPeak = Math.max(0.01, ...peaks);
   const normPeaks = peaks.map((p) => Number((p / maxPeak).toFixed(3)));
 
-  // 2. Auto-detect the main Drop bar boundary
   const secPerBar = (60 / bpm) * 4;
   const totalBars = Math.max(2, Math.round(duration / secPerBar));
   const barEnergies = [];
@@ -170,7 +157,7 @@ function analyzeWavFile(filePath, bpm = 120) {
     barEnergies.push(sum / (pEnd - pStart));
   }
 
-  // Look for the strongest structural energy jump on a 4-bar or 2-bar boundary between 25% and 70% of the sample
+  // find the biggest energy jump between 20% and 75% of the loop, weighting 4-bar boundaries
   let bestBarIdx = Math.min(8, Math.floor(totalBars / 2));
   let bestScore = -Infinity;
 
@@ -186,7 +173,7 @@ function analyzeWavFile(filePath, bpm = 120) {
       Math.min(4, totalBars - b);
 
     let jumpScore = afterAvg - beforeAvg * 0.85;
-    if (b % 4 === 0) jumpScore *= 1.35; // Favor 4-bar boundaries (e.g. Bar 5, Bar 9)
+    if (b % 4 === 0) jumpScore *= 1.35;
     else if (b % 2 === 0) jumpScore *= 1.15;
 
     if (jumpScore > bestScore) {
@@ -195,12 +182,12 @@ function analyzeWavFile(filePath, bpm = 120) {
     }
   }
 
-  const dropBar = bestBarIdx + 1; // 1-indexed (e.g. Bar 9)
+  const dropBar = bestBarIdx + 1;
   const dropTime = Number((bestBarIdx * secPerBar).toFixed(3));
 
-  // 3. Audio-to-MIDI onset + zero-crossing/autocorrelation pitch fallback (used if only .wav is uploaded)
+  // rough zero-crossing pitch + onset fallback when only a wav is loaded without midi
   const fallbackNotes = [];
-  const stepSec = 60 / bpm / 2; // 8th-note grid
+  const stepSec = 60 / bpm / 2;
   const totalSteps = Math.floor(duration / stepSec);
 
   for (let s = 0; s < totalSteps; s++) {
@@ -240,7 +227,7 @@ function analyzeWavFile(filePath, bpm = 120) {
     });
   }
 
-  // 4. Compute transient impact timestamps post-drop for impact-synced video cutting
+  // transient spikes after the drop for impact-cut mode
   const impactTimes = [dropTime];
   const minImpactInterval = (60 / bpm) * 1.5;
   let lastImpact = dropTime;

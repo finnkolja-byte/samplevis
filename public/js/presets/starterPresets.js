@@ -1,25 +1,16 @@
-/**
- * starter presets — built-in 3-box reelpreset specifications
- *
- * 1. constellations-shinkai: signature celestial starbursts & anime chord-cutting drop
- * 2. cinematic-minimal: tokyo letterbox, aesthetic recording telemetry & spectrum
- * 3. anime-chord-flow: dynamic chord-switched anime clips with reactive shader fx
- */
+// built-in 3-box presets: constellations, cinematic-minimal, anime-chord-flow
 (function () {
   'use strict';
 
-  // =========================================================================
-  // preset 1: constellations & shinkai starbursts
-  // =========================================================================
   const CONSTELLATIONS_PRESET = {
     version: '1.0',
     id: 'constellations',
     meta: {
-      name: 'constellations',
-      title: 'constellations',
-      description: 'shinkai needle starbursts · celestial band drift · 3-stage dynamic sky',
+      name: 'Constellations',
+      title: 'Constellations',
+      description: 'Celestial starfield and piano roll with anime drop compositing',
       aspectRatio: '9:16',
-      badge: 'signature'
+      badge: 'Signature'
     },
 
     shaderBox: {
@@ -176,7 +167,6 @@
       `,
 
       drawScript: `
-        // draw constellations shinkai canvas 2d overlay
         const controls = frame.controls || {};
         const project = state.project || {};
         const tCurrent = frame.audio.time;
@@ -192,7 +182,7 @@
         const animeOp = controls.animeOpacity !== undefined ? controls.animeOpacity : 0.62;
         const motionMult = controls.cameraMotion !== undefined ? controls.cameraMotion : 1.0;
 
-        // 1. camera sway & pre-drop lift
+        // camera sway & pre-drop lift
         const pLift = (!isPostDrop && tCurrent >= dropTime - 2.2 && tCurrent < dropTime)
           ? Math.max(0, Math.min(1, (tCurrent - (dropTime - 2.2)) / 2.2)) : 0;
         const liftEase = pLift * pLift * (3 - 2 * pLift);
@@ -215,17 +205,15 @@
           ctx.translate(-width * 0.5, -height * 0.5);
         }
 
-        // 2. melancholic anime video layer (after drop)
+        // anime video layer after drop
         if (isPostDrop && animeOp > 0.01) {
           ctx.save();
           let vidAlpha = Math.min(1.0, dropAge / 0.35) * animeOp;
           ctx.globalAlpha = vidAlpha;
 
-          // target 9:16 or 16:9 crop framing
           const clipIdx = 0;
           frame.clips.drawClip(ctx, clipIdx, 0, 0, width, height, { opacity: vidAlpha });
 
-          // soft vignette gradient over video
           const vig = ctx.createLinearGradient(0, 0, 0, height);
           vig.addColorStop(0, 'rgba(18, 24, 41, 0.45)');
           vig.addColorStop(0.3, 'rgba(18, 24, 41, 0.1)');
@@ -236,7 +224,7 @@
           ctx.restore();
         }
 
-        // 3. constellations & starbursts
+        // constellations & starbursts
         const stars = state.starSeeds || [];
         const linkDist = controls.linkDistance || 240;
 
@@ -250,13 +238,11 @@
             const env = isTrigger ? 1.0 - (dt / 0.55) : 0.8;
             const starAlpha = Math.min(1.0, env * bloom);
 
-            // shinkai needle starburst rays
             ctx.save();
             ctx.strokeStyle = s.warmth > 0.5 ? \`rgba(255, 235, 195, \${starAlpha})\` : \`rgba(195, 235, 255, \${starAlpha})\`;
             ctx.lineWidth = 1.5;
 
             const rayLen = (18 + s.radius * 3.5) * (0.8 + env * 0.8);
-            // cross rays
             ctx.beginPath();
             ctx.moveTo(s.x - rayLen, s.y);
             ctx.lineTo(s.x + rayLen, s.y);
@@ -264,14 +250,12 @@
             ctx.lineTo(s.x, s.y + rayLen);
             ctx.stroke();
 
-            // core glow
             ctx.beginPath();
             ctx.arc(s.x, s.y, s.radius * (0.8 + env * 0.6), 0, Math.PI * 2);
             ctx.fillStyle = \`rgba(255, 255, 255, \${starAlpha})\`;
             ctx.fill();
             ctx.restore();
 
-            // link lines to nearby active stars
             for (let j = i + 1; j < stars.length; j++) {
               const s2 = stars[j];
               const dt2 = tCurrent - s2.note.startTime;
@@ -291,7 +275,7 @@
           }
         }
 
-        // 4. drop shockwave flash
+        // drop flash
         if (isPostDrop && dropAge >= 0 && dropAge < 0.8) {
           const flash = Math.pow(1 - dropAge / 0.8, 2.5);
           ctx.fillStyle = \`rgba(255, 255, 255, \${flash * 0.45})\`;
@@ -300,12 +284,11 @@
 
         ctx.restore();
 
-        // 5. liquid glass piano roll (bottom stage)
+        // bottom piano roll
         const rollTop = state.pianoRollTop || Math.round(height * 0.724);
         const rollH = height - rollTop;
 
         ctx.save();
-        // glass backdrop
         const rollGrad = ctx.createLinearGradient(0, rollTop, 0, height);
         rollGrad.addColorStop(0, 'rgba(18, 24, 41, 0.45)');
         rollGrad.addColorStop(0.3, 'rgba(22, 33, 78, 0.7)');
@@ -313,7 +296,6 @@
         ctx.fillStyle = rollGrad;
         ctx.fillRect(0, rollTop, width, rollH);
 
-        // glass top divider
         ctx.strokeStyle = 'rgba(216, 230, 219, 0.22)';
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -321,11 +303,10 @@
         ctx.lineTo(width, rollTop);
         ctx.stroke();
 
-        // piano roll notes
         const rollLeft = 40;
         const rollWidth = width - 80;
         const pSpan = Math.max(12, state.maxPitch - state.minPitch);
-        const timeWindow = 4.5; // seconds visible
+        const timeWindow = 4.5;
 
         for (const n of frame.midi.allNotes) {
           const noteT = n.startTime;
@@ -341,7 +322,6 @@
           ctx.fillRect(x, y, barW, 4);
 
           if (isPlaying) {
-            // note head glow
             ctx.fillStyle = '#f0f7f2';
             ctx.beginPath();
             ctx.arc(x, y + 2, 4, 0, Math.PI * 2);
@@ -349,7 +329,6 @@
           }
         }
 
-        // playhead line
         ctx.strokeStyle = '#83ca90';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -357,7 +336,6 @@
         ctx.lineTo(rollLeft, height);
         ctx.stroke();
 
-        // 6. centered minimal track info
         ctx.textAlign = 'center';
         ctx.font = '500 24px "Space Grotesk", sans-serif';
         ctx.fillStyle = '#f0f7f2';
@@ -385,7 +363,7 @@
         {
           id: 'timeOfDay',
           target: 'shader_uniform',
-          label: 'time of day (sky palette)',
+          label: 'Sky Palette',
           type: 'slider',
           defaultValue: 25,
           min: 0,
@@ -395,15 +373,14 @@
         {
           id: 'sunsetDropTransition',
           target: 'shader_uniform',
-          label: 'sunset drop transition',
+          label: 'Sunset Drop Transition',
           type: 'toggle',
-          defaultValue: false,
-          subtext: 'morph sky to sunset on drop lift'
+          defaultValue: false
         },
         {
           id: 'driftSpeed',
           target: 'overlay_control',
-          label: 'celestial drift speed',
+          label: 'Star Drift Speed',
           type: 'slider',
           defaultValue: 1.0,
           min: 0.2,
@@ -413,7 +390,7 @@
         {
           id: 'linkDistance',
           target: 'overlay_control',
-          label: 'constellation link distance',
+          label: 'Constellation Span',
           type: 'slider',
           defaultValue: 240,
           min: 80,
@@ -423,7 +400,7 @@
         {
           id: 'bloomIntensity',
           target: 'both',
-          label: 'starburst bloom intensity',
+          label: 'Star Bloom',
           type: 'slider',
           defaultValue: 0.88,
           min: 0.2,
@@ -433,7 +410,7 @@
         {
           id: 'animeOpacity',
           target: 'overlay_control',
-          label: 'anime scenery opacity',
+          label: 'Clip Blend Opacity',
           type: 'slider',
           defaultValue: 0.62,
           min: 0.1,
@@ -443,7 +420,7 @@
         {
           id: 'cameraMotion',
           target: 'overlay_control',
-          label: 'camera sway & tension punch',
+          label: 'Camera Motion',
           type: 'slider',
           defaultValue: 1.0,
           min: 0.0,
@@ -453,7 +430,7 @@
         {
           id: 'cutMode',
           target: 'overlay_control',
-          label: 'drop cut mode',
+          label: 'Drop Cut Mode',
           type: 'select',
           defaultValue: 'chord',
           options: ['chord', 'single', '2bar', '4bar', 'impact']
@@ -461,26 +438,23 @@
         {
           id: 'speedRamping',
           target: 'overlay_control',
-          label: 'speed ramp transitions',
+          label: 'Speed Ramp Cuts',
           type: 'toggle',
-          defaultValue: true,
-          subtext: 'whip accelerate into & out of cuts'
+          defaultValue: true
         },
         {
           id: 'dropGlitch',
           target: 'overlay_control',
-          label: 'glitch transitions',
+          label: 'Glitch Transitions',
           type: 'toggle',
-          defaultValue: true,
-          subtext: 'chromatic glitch at drop & turnaround'
+          defaultValue: true
         },
         {
           id: 'autoFrame',
           target: 'overlay_control',
-          label: 'auto-frame subject',
+          label: 'Auto-Frame Subject',
           type: 'toggle',
-          defaultValue: true,
-          subtext: 'centers characters in crop'
+          defaultValue: true
         }
       ],
       values: {
@@ -499,18 +473,15 @@
     }
   };
 
-  // =========================================================================
-  // preset 2: cinematic minimal (tokyo letterbox & telemetry hud)
-  // =========================================================================
   const CINEMATIC_MINIMAL_PRESET = {
     version: '1.0',
     id: 'cinematic-minimal',
     meta: {
-      name: 'cinematic minimal',
-      title: 'cinematic minimal',
-      description: 'anamorphic matte bars · reactive audio spectrum · minimal typography & film grain',
+      name: 'Cinematic Minimal',
+      title: 'Cinematic Minimal',
+      description: 'Anamorphic matte bars, audio spectrum, and 35mm grain',
       aspectRatio: '9:16',
-      badge: 'aesthetic'
+      badge: 'Aesthetic'
     },
 
     shaderBox: {
@@ -572,17 +543,14 @@
         const barH = controls.letterboxHeight !== undefined ? controls.letterboxHeight : 200;
         const accent = controls.accentColor || '#38bdf8';
 
-        // 1. draw active video inside anamorphic viewport
         const viewY = barH;
         const viewH = height - barH * 2;
         frame.clips.drawClip(ctx, 0, 0, viewY, width, viewH, { opacity: 0.88 });
 
-        // 2. anamorphic letterbox matte bars (top & bottom)
         ctx.fillStyle = '#0a0d14';
         ctx.fillRect(0, 0, width, barH);
         ctx.fillRect(0, height - barH, width, barH);
 
-        // thin accent borders on letterbox edges
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -592,20 +560,14 @@
         ctx.lineTo(width, height - barH);
         ctx.stroke();
 
-        // 3. top telemetry hud
+        // top telemetry hud
         ctx.save();
         ctx.font = '500 18px "IBM Plex Mono", monospace';
-        ctx.fillStyle = '#ff4b4b';
-        // blinking rec dot
-        if (Math.floor(t * 2) % 2 === 0) {
-          ctx.beginPath();
-          ctx.arc(60, barH * 0.5, 6, 0, Math.PI * 2);
-          ctx.fill();
-        }
+        ctx.fillStyle = accent;
+        ctx.fillRect(60, barH * 0.5 - 6, 4, 14);
         ctx.fillStyle = '#f0f7f2';
-        ctx.fillText('REC', 78, barH * 0.5 + 6);
+        ctx.fillText('35MM // 24FPS', 74, barH * 0.5 + 6);
 
-        // timecode readout
         const mins = String(Math.floor(t / 60)).padStart(2, '0');
         const secs = String(Math.floor(t % 60)).padStart(2, '0');
         const frames = String(Math.floor((t % 1) * 60)).padStart(2, '0');
@@ -613,7 +575,7 @@
         ctx.fillText(\`\${mins}:\${secs}:\${frames}\`, width - 60, barH * 0.5 + 6);
         ctx.restore();
 
-        // 4. reactive audio spectrum bars (above bottom bar)
+        // audio spectrum bars above bottom bar
         ctx.save();
         const numBars = 48;
         const specW = width - 120;
@@ -622,7 +584,6 @@
         const baseY = height - barH - 24;
 
         for (let i = 0; i < numBars; i++) {
-          const normIdx = i / numBars;
           const energy = frame.audio.rms * (Math.sin(t * 8 + i * 0.4) * 0.5 + 0.5);
           const barHeight = Math.max(4, energy * 90);
 
@@ -631,7 +592,7 @@
         }
         ctx.restore();
 
-        // 5. minimal typography in bottom bar
+        // bottom bar typography
         ctx.save();
         ctx.textAlign = 'left';
         ctx.font = '600 22px "Space Grotesk", sans-serif';
@@ -657,7 +618,7 @@
         {
           id: 'letterboxHeight',
           target: 'overlay_control',
-          label: 'letterbox bar height',
+          label: 'Letterbox Height',
           type: 'slider',
           defaultValue: 200,
           min: 80,
@@ -667,7 +628,7 @@
         {
           id: 'filmGrain',
           target: 'shader_uniform',
-          label: 'analog film grain',
+          label: '35mm Film Grain',
           type: 'slider',
           defaultValue: 0.35,
           min: 0.0,
@@ -677,14 +638,14 @@
         {
           id: 'accentColor',
           target: 'both',
-          label: 'telemetry accent color',
+          label: 'HUD Accent Color',
           type: 'color',
           defaultValue: '#38bdf8'
         },
         {
           id: 'bloomIntensity',
           target: 'overlay_control',
-          label: 'spectrum glow intensity',
+          label: 'Spectrum Glow',
           type: 'slider',
           defaultValue: 0.75,
           min: 0.1,
@@ -694,7 +655,7 @@
         {
           id: 'cutMode',
           target: 'overlay_control',
-          label: 'cut mode',
+          label: 'Cut Mode',
           type: 'select',
           defaultValue: 'chord',
           options: ['chord', 'single', '2bar', '4bar', 'impact']
@@ -710,18 +671,15 @@
     }
   };
 
-  // =========================================================================
-  // preset 3: anime chord flow (kinetic chord cutter & shader glitch)
-  // =========================================================================
   const ANIME_CHORD_FLOW_PRESET = {
     version: '1.0',
     id: 'anime-chord-flow',
     meta: {
-      name: 'anime chord flow',
-      title: 'anime chord flow',
-      description: 'dynamic anime clip cuts on chord changes · chromatic glitch · kinetic typography HUD',
+      name: 'Anime Chord Flow',
+      title: 'Anime Chord Flow',
+      description: 'Chord-synced clip cuts, chromatic aberration, and bar/beat HUD',
       aspectRatio: '9:16',
-      badge: 'dynamic'
+      badge: 'Dynamic'
     },
 
     shaderBox: {
@@ -789,13 +747,11 @@
         // overlay kinetic hud
         ctx.save();
 
-        // 1. kinetic bar / beat readout
         ctx.font = '600 36px "Space Grotesk", sans-serif';
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'left';
         ctx.fillText(\`BAR \${String(currentBar).padStart(2, '0')}.\${currentBeat}\`, 60, 120);
 
-        // subtitle key & bpm
         const subMeta = [
           project.key ? project.key.toUpperCase() : null,
           project.bpm ? \`\${project.bpm} BPM\` : null
@@ -806,7 +762,6 @@
           ctx.fillText(subMeta, 60, 155);
         }
 
-        // 2. active chord indicator
         const cuts = project.chordCutTimes || [];
         let chordIdx = -1;
         for (let i = cuts.length - 1; i >= 0; i--) {
@@ -823,7 +778,7 @@
           const names = Array.from(new Set(frame.midi.activeNotes.map((n) => n.name.replace(/\\d+$/, ''))));
           chordDisplay = names.slice(0, 4).join(' ');
         } else if (chordIdx >= 0) {
-          chordDisplay = \`HIT \${chordIdx + 1}\`;
+          chordDisplay = \`CHORD \${chordIdx + 1}\`;
         }
 
         if (chordDisplay) {
@@ -831,13 +786,8 @@
           ctx.font = '500 24px "IBM Plex Mono", monospace';
           ctx.fillStyle = '#f0f7f2';
           ctx.fillText(chordDisplay.toUpperCase(), width - 60, 120);
-
-          ctx.font = '400 16px "IBM Plex Mono", monospace';
-          ctx.fillStyle = '#9daea8';
-          ctx.fillText('DYNAMIC HARMONY SYNC', width - 60, 155);
         }
 
-        // 3. beat pulse ring accent
         const beatFrac = (t % secPerBeat) / secPerBeat;
         const ringAlpha = (1 - beatFrac) * 0.45;
         const ringRadius = 12 + beatFrac * 28;
@@ -857,7 +807,7 @@
         {
           id: 'glitchIntensity',
           target: 'shader_uniform',
-          label: 'chord cut glitch intensity',
+          label: 'Chord Cut Glitch',
           type: 'slider',
           defaultValue: 1.0,
           min: 0.0,
@@ -867,7 +817,7 @@
         {
           id: 'bassPulse',
           target: 'shader_uniform',
-          label: 'bass pulse zoom',
+          label: 'Bass Pulse Zoom',
           type: 'slider',
           defaultValue: 1.0,
           min: 0.0,
@@ -877,7 +827,7 @@
         {
           id: 'cutMode',
           target: 'overlay_control',
-          label: 'clip cut mode',
+          label: 'Clip Cut Mode',
           type: 'select',
           defaultValue: 'chord',
           options: ['chord', 'single', '2bar', '4bar', 'impact']
@@ -885,10 +835,9 @@
         {
           id: 'speedRamping',
           target: 'overlay_control',
-          label: 'speed ramp transitions',
+          label: 'Speed Ramp Cuts',
           type: 'toggle',
-          defaultValue: true,
-          subtext: 'accelerate on chord shifts'
+          defaultValue: true
         }
       ],
       values: {

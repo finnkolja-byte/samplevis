@@ -1,23 +1,20 @@
-/**
- * Constellations Template Wrapper
- * Wraps SampleVisualizer into the modular template architecture.
- */
+// wraps SampleVisualizer into the template registry
 (function () {
   function formatTimeOfDay(v) {
-    if (v < 20) return 'deep night (blue/violet)';
-    if (v < 40) return 'midnight (deep navy)';
-    if (v < 60) return 'pre-dawn twilight';
-    if (v < 80) return 'golden sunrise';
-    return 'daylight glow';
+    if (v < 20) return 'Deep Night';
+    if (v < 40) return 'Midnight';
+    if (v < 60) return 'Pre-Dawn';
+    if (v < 80) return 'Sunrise';
+    return 'Daylight';
   }
 
   class ConstellationsTemplate {
     constructor() {
       this.id = 'constellations';
-      this.name = 'constellations';
-      this.subtitle = 'shinkai celestial starfield';
-      this.tagline = 'shinkai needle starbursts · celestial band drift · 3-stage dynamic sky';
-      this.badge = 'signature';
+      this.name = 'Constellations';
+      this.subtitle = 'Shinkai celestial starfield';
+      this.tagline = 'Celestial starfield and piano roll with anime drop compositing';
+      this.badge = 'Signature';
       this.visualizer = null;
       this.params = {};
     }
@@ -71,9 +68,7 @@
       }
     }
 
-    cleanup() {
-      // Nothing heavy to cleanup
-    }
+    cleanup() {}
 
     renderControls(container, onChange) {
       const p = this.visualizer ? this.visualizer.params : {};
@@ -88,51 +83,49 @@
       container.innerHTML = `
         <div class="slider-group">
           <div class="slider-row">
-            <label for="sliderTimeOfDay">time of day (sky palette)</label>
+            <label for="sliderTimeOfDay">Sky Palette</label>
             <span class="slider-val" id="valTimeOfDay">${formatTimeOfDay(timeOfDayVal)}</span>
           </div>
           <input type="range" id="sliderTimeOfDay" min="0" max="100" step="1" value="${timeOfDayVal}" />
           <div class="speedramp-row" style="margin-top: 6px; margin-bottom: 12px;">
             <label class="speedramp-label" for="sunsetDropToggle">
               <input type="checkbox" id="sunsetDropToggle" ${sunsetDropChecked ? 'checked' : ''} />
-              <span class="speedramp-text">sunset drop transition</span>
-              <span class="speedramp-subtext">· morph sky to sunset on drop lift</span>
+              <span class="speedramp-text">Sunset Drop Transition</span>
             </label>
           </div>
 
           <div class="slider-row">
-            <label for="sliderDrift">organic star drift</label>
+            <label for="sliderDrift">Star Drift</label>
             <span class="slider-val" id="valDrift">${driftVal.toFixed(1)}x</span>
           </div>
           <input type="range" id="sliderDrift" min="0.2" max="2.5" step="0.1" value="${driftVal}" />
 
           <div class="slider-row">
-            <label for="sliderLinkDist">constellation link span</label>
+            <label for="sliderLinkDist">Constellation Span</label>
             <span class="slider-val" id="valLinkDist">${linkDistVal}px</span>
           </div>
           <input type="range" id="sliderLinkDist" min="90" max="380" step="10" value="${linkDistVal}" />
 
           <div class="slider-row">
-            <label for="sliderBloom">star bloom &amp; golden warmth</label>
+            <label for="sliderBloom">Star Bloom</label>
             <span class="slider-val" id="valBloom">${bloomVal}%</span>
           </div>
           <input type="range" id="sliderBloom" min="20" max="100" step="4" value="${bloomVal}" />
 
           <div class="slider-row">
-            <label for="sliderAnimeOpacity">anime sky blend opacity</label>
+            <label for="sliderAnimeOpacity">Clip Blend Opacity</label>
             <span class="slider-val" id="valAnimeOpacity">${animeOpVal}%</span>
           </div>
           <input type="range" id="sliderAnimeOpacity" min="20" max="95" step="5" value="${animeOpVal}" />
 
           <div class="slider-row">
-            <label for="sliderMotion">cinematic camera sway &amp; shake</label>
+            <label for="sliderMotion">Camera Motion</label>
             <span class="slider-val" id="valMotion">${motionVal.toFixed(1)}x</span>
           </div>
           <input type="range" id="sliderMotion" min="0" max="2.0" step="0.1" value="${motionVal}" />
         </div>
       `;
 
-      // Attach events
       const sliderTod = container.querySelector('#sliderTimeOfDay');
       const valTod = container.querySelector('#valTimeOfDay');
       sliderTod.addEventListener('input', (e) => {

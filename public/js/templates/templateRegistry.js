@@ -1,8 +1,4 @@
-/**
- * template registry for samplevis studio
- * allows seamless switching between visual designs and 3-box reelpresets while preserving
- * audio, anime clip playback, cut modes, transport, and webcodecs export.
- */
+// registry and adapter for switching between canvas templates and 3-box presets
 class ReelPresetTemplateAdapter {
   constructor(preset) {
     this.id = preset.id;
@@ -103,7 +99,10 @@ class ReelPresetTemplateAdapter {
   }
 
   cleanup() {
-    // nothing heavy to clean
+    if (this.engine && typeof this.engine.cleanup === 'function') {
+      this.engine.cleanup();
+      this.engine = null;
+    }
   }
 }
 

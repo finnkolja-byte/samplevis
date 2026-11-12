@@ -5,7 +5,7 @@ const https = require('https');
 const CLIPS_DIR = path.join(__dirname, '..', '..', 'data', 'anime-clips');
 const CATALOG_PATH = path.join(__dirname, '..', '..', 'data', 'anime-library.json');
 
-// Curated melancholic presets: includes character slice-of-life moments (beach, city stairs, walking, train, wind, night, sunset, calm) + scenery
+// sakugabooru tag presets tuned for slice-of-life / atmospheric scenery cuts
 const MELANCHOLIC_PRESETS = {
   kimi_no_na_wa: {
     label: 'Kimi no Na wa (Your Name)',
@@ -136,7 +136,7 @@ const MELANCHOLIC_PRESETS = {
   }
 };
 
-// Strict exclusion tags to prevent any action/fight/combat/chaos from slipping in
+// sakugabooru has plenty of raw genga and action cuts — filter those out so we stick to clean atmospheric shots
 const EXCLUDED_TAGS = new Set([
   'fighting',
   'fight',
@@ -196,7 +196,7 @@ function loadCatalog() {
   if (!fs.existsSync(CATALOG_PATH)) return [];
   try {
     const list = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
-    // Keep only clips whose files exist on disk
+    // drop stale entries if the mp4 was deleted from disk
     return list.filter((item) => fs.existsSync(path.join(CLIPS_DIR, item.filename)));
   } catch {
     return [];
@@ -323,12 +323,7 @@ function formatReadableTitle(tagsStr, postId) {
   return cleanMood ? `${cleanShow} (${cleanMood})` : `${cleanShow} #${postId}`;
 }
 
-/**
- * Fetches melancholic anime clips from Sakugabooru matching a preset category or custom tags.
- * Supports two modes:
- * - 'best': Deterministically fetches the highest-rated masterpiece clips (page 1 score-ordered).
- * - 'random': Samples fresh random clips within the category each time (random page + score-weighted sampling).
- */
+// pulls mp4 clips from sakugabooru ('best' grabs top-scored page 1 cuts; 'random' samples across pages 1-5)
 async function fetchAnimeClips({ category = 'all', customQuery = '', count = 4, mode = 'best' } = {}) {
   ensureDirs();
   const catalog = loadCatalog();
@@ -345,7 +340,6 @@ async function fetchAnimeClips({ category = 'all', customQuery = '', count = 4, 
       vibe: MELANCHOLIC_PRESETS[category].vibe
     }));
   } else {
-    // Balanced mix of Character Melancholic + City/Stairs/Train + Beach/Ocean + Meadows/Sky
     for (const preset of Object.values(MELANCHOLIC_PRESETS)) {
       for (const q of preset.queries.slice(0, 2)) {
         queriesToRun.push({
@@ -356,7 +350,6 @@ async function fetchAnimeClips({ category = 'all', customQuery = '', count = 4, 
     }
   }
 
-  // Shuffle query order slightly when fetching 'all' for broad category diversity
   if (category === 'all') {
     queriesToRun.sort(() => Math.random() - 0.5);
   }
@@ -364,14 +357,12 @@ async function fetchAnimeClips({ category = 'all', customQuery = '', count = 4, 
   const candidates = [];
 
   for (const { query, vibe } of queriesToRun) {
-    // In random mode, pick a random page (1 to 5) each time to fetch different clips within the category
-    // In best mode, start with page 1 to guarantee top community-rated clips first
     const targetPage = mode === 'random' ? Math.floor(Math.random() * 5) + 1 : 1;
     let apiUrl = `https://www.sakugabooru.com/post.json?limit=40&page=${targetPage}&tags=${encodeURIComponent(query)}`;
 
     try {
       let posts = await httpsGetJson(apiUrl);
-      // In best mode, if page 1 has few undownloaded posts, fetch page 2 to get the next best clips
+      // if page 1 is mostly already downloaded, check page 2 before giving up
       if (mode === 'best' && Array.isArray(posts)) {
         const unDownloaded = posts.filter((p) => p && !existingIds.has(String(p.id)));
         if (unDownloaded.length < count) {
@@ -380,7 +371,6 @@ async function fetchAnimeClips({ category = 'all', customQuery = '', count = 4, 
           if (Array.isArray(p2Posts)) posts = posts.concat(p2Posts);
         }
       } else if (mode === 'random' && (!Array.isArray(posts) || posts.length < 3) && targetPage > 1) {
-        // Fallback for random mode if high page was empty
         apiUrl = `https://www.sakugabooru.com/post.json?limit=40&page=1&tags=${encodeURIComponent(query)}`;
         posts = await httpsGetJson(apiUrl);
       }
@@ -390,13 +380,12 @@ async function fetchAnimeClips({ category = 'all', customQuery = '', count = 4, 
         if (!post || !post.file_url || existingIds.has(String(post.id))) continue;
         if (post.rating === 'e') continue;
         if (!post.file_url.endsWith('.mp4')) continue;
-        // Reasonable file size (450KB to 14.5MB) for smooth streaming & fast loading
+        // keep clip sizes between ~450kb and 14.5mb so they buffer quickly in the browser pool
         if (post.file_size && (post.file_size < 450_000 || post.file_size > 14_500_000)) continue;
 
         const postTags = String(post.tags || '').split(/\s+/);
         if (postTags.some((t) => EXCLUDED_TAGS.has(t))) continue;
 
-        // Quality Floor: Require proven community upvote score (>= 12) so low-tier clips are rejected
         const score = typeof post.score === 'number' ? post.score : 0;
         if (score < 12) continue;
 
@@ -413,11 +402,10 @@ async function fetchAnimeClips({ category = 'all', customQuery = '', count = 4, 
         existingIds.add(String(post.id));
       }
     } catch {
-      // Continue if one tag query fails
+      // ignore single tag fetch failures
     }
   }
 
-  // Group candidates by vibe
   const byVibe = {};
   for (const item of candidates) {
     if (!byVibe[item.vibe]) byVibe[item.vibe] = [];
@@ -427,7 +415,7 @@ async function fetchAnimeClips({ category = 'all', customQuery = '', count = 4, 
   for (const vibe of Object.keys(byVibe)) {
     const pool = byVibe[vibe];
     if (mode === 'random') {
-      // Quality-weighted random sampling: samples randomly from "the good ones"
+      // score-weighted reservoir key so random mode still favors higher-rated cuts
       for (const item of pool) {
         const charBonus = item.hasCharacter ? 1.35 : 1.0;
         const qualityWeight = Math.sqrt(Math.max(10, item.score)) * charBonus;
@@ -436,7 +424,6 @@ async function fetchAnimeClips({ category = 'all', customQuery = '', count = 4, 
       }
       pool.sort((a, b) => b.randomRank - a.randomRank);
     } else {
-      // Pure quality ranking: highest score first, with character acting preference
       pool.sort((a, b) => {
         const scoreA = (a.score || 0) * (a.hasCharacter ? 1.25 : 1.0);
         const scoreB = (b.score || 0) * (b.hasCharacter ? 1.25 : 1.0);
@@ -445,7 +432,7 @@ async function fetchAnimeClips({ category = 'all', customQuery = '', count = 4, 
     }
   }
 
-  // Interleave candidates across vibes so 'all' fetches a balanced mix of character, city, beach, and scenery
+  // round-robin across vibes when pulling from 'all'
   const interleaved = [];
   const vibeKeys = Object.keys(byVibe);
   let maxLen = Math.max(0, ...vibeKeys.map((k) => byVibe[k].length));
@@ -481,7 +468,7 @@ async function fetchAnimeClips({ category = 'all', customQuery = '', count = 4, 
       catalog.unshift(entry);
       newlyDownloaded.push(entry);
     } catch {
-      // Skip broken download
+      // skip failed download
     }
   }
 
@@ -492,10 +479,7 @@ async function fetchAnimeClips({ category = 'all', customQuery = '', count = 4, 
   };
 }
 
-/**
- * Matches best clips from catalog for a sample based on title/mood keywords, preferring a mix of character & scenery.
- * Uses quality-controlled random variance to rotate among top matches without picking irrelevant clips.
- */
+// picks initial clips matching the sample title's mood with a bit of random tie-breaking
 function pickClipsForSample(catalog, sampleTitle = '') {
   if (!catalog || catalog.length === 0) return [];
   const lower = sampleTitle.toLowerCase();
@@ -515,7 +499,6 @@ function pickClipsForSample(catalog, sampleTitle = '') {
     if (clip.favorite) score += 2.0;
     if (clip.score && clip.score > 50) score += 0.8;
 
-    // Small controlled jitter (0..0.75) breaks ties among top matches for fresh variety
     const jitter = Math.random() * 0.75;
     return { clip, effectiveScore: score + jitter };
   });

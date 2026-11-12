@@ -2,9 +2,6 @@ const fs = require('fs');
 const { Midi } = require('@tonejs/midi');
 const { midiToNoteName } = require('./alsParser');
 
-/**
- * Parses a standard .mid file into normalized tracks and notes.
- */
 function parseMidiFile(filePath, fallbackBpm = 120) {
   const buffer = fs.readFileSync(filePath);
   const midi = new Midi(buffer);

@@ -1,10 +1,4 @@
-/**
- * AI Provider Service (BYOK Community Edition)
- *
- * Allows self-hosters to generate and modify ReelPresets using their personal
- * OpenAI-compatible API key (DeepInfra, OpenRouter, OpenAI, Groq, Ollama).
- * Keys are stored locally in the user's browser (localStorage) and never transmitted to external servers.
- */
+// byok preset generator — stores api credentials in localstorage only
 (function () {
   'use strict';
 

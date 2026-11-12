@@ -1,14 +1,4 @@
-/**
- * reelengine — 3-box universal dual-layer composite preset runtime
- *
- * architecture:
- * - box 1 (shaderbox): webgl fragment shader background (time, fft, midi, video texture, custom uniforms)
- * - box 2 (frontuibox): two-stage scriptable canvas 2d overlay (initscript + drawscript)
- * - box 3 (controlsbox): dynamic controls schema & live values
- *
- * deterministic frame renderer: given timestamp `t` and active video frame,
- * renders identical frames for both 60fps preview and webcodecs mp4 export.
- */
+// dual-layer preset runtime: webgl shader background + 2d canvas overlay
 (function () {
   'use strict';
 
@@ -194,12 +184,12 @@
       gl.attachShader(prog, vs);
       gl.attachShader(prog, fs);
       gl.linkProgram(prog);
+      gl.deleteShader(vs);
+      gl.deleteShader(fs);
 
       if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
         console.error('ShaderBox program link error:', gl.getProgramInfoLog(prog));
         gl.deleteProgram(prog);
-        gl.deleteShader(vs);
-        gl.deleteShader(fs);
         return false;
       }
 
@@ -230,12 +220,10 @@
         this.setAspectRatio(preset.meta.aspectRatio);
       }
 
-      // 1. compile box 1 fragment shader
       if (preset.shaderBox?.fragmentShader) {
         this.compileShaderBox(preset.shaderBox.fragmentShader);
       }
 
-      // 2. compile box 2 frontuibox scripts
       try {
         this.compiledInitScript = new Function(
           'project',
@@ -262,7 +250,6 @@
         this.compiledDrawScript = () => {};
       }
 
-      // 3. re-initialize state
       this.reinitPresetState();
     }
 
@@ -436,14 +423,12 @@
         return this.uniformLocations[name];
       };
 
-      // 1. time & resolution
       const uTime = getLoc('u_time');
       if (uTime) gl.uniform1f(uTime, time);
 
       const uRes = getLoc('u_resolution');
       if (uRes) gl.uniform2f(uRes, this.width, this.height);
 
-      // 2. audio metrics
       const uBass = getLoc('u_bass');
       if (uBass) gl.uniform1f(uBass, audioMetrics.bass);
       const uMid = getLoc('u_mid');
@@ -453,7 +438,6 @@
       const uRms = getLoc('u_rms');
       if (uRms) gl.uniform1f(uRms, audioMetrics.rms);
 
-      // 3. midi metrics
       const uHasMidi = getLoc('u_has_midi');
       if (uHasMidi) gl.uniform1f(uHasMidi, this.selectedTrackIds.size > 0 ? 1.0 : 0.0);
       const uBpm = getLoc('u_bpm');
@@ -463,7 +447,6 @@
       const uActivePitch = getLoc('u_active_pitch');
       if (uActivePitch) gl.uniform1f(uActivePitch, activePitch);
 
-      // 4. video clip texture
       const uHasVideo = getLoc('u_has_video');
       const uVideoTex = getLoc('u_video_tex');
       const vid = activeVideo || this.activeVideos[this.shaderClipIndex];
@@ -474,7 +457,7 @@
         try {
           gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, vid);
         } catch {
-          // ignore potential frame read error
+          // ignore cross-origin or unready video frames
         }
         if (uVideoTex) gl.uniform1i(uVideoTex, 0);
         if (uHasVideo) gl.uniform1f(uHasVideo, 1.0);
@@ -482,7 +465,6 @@
         if (uHasVideo) gl.uniform1f(uHasVideo, 0.0);
       }
 
-      // 5. dynamic controls uniforms
       const fields = this.preset?.controlsBox?.fields || [];
       const values = this.preset?.controlsBox?.values || {};
 
@@ -559,17 +541,14 @@
       const W = this.width;
       const H = this.height;
 
-      // 1. gather audio & midi frame data
       const audioMetrics = this._getAudioMetricsAt(time);
       const { all, active, triggered } = this._getActiveAndTriggeredNotes(time);
 
       const noteHit = triggered.length > 0 ? 1.0 : Math.max(0, audioMetrics.beatImpulse * 0.8);
       const activePitch = active.length > 0 ? (active[0].pitch - 36) / 60 : 0.5;
 
-      // 2. render box 1 (webgl fragment shader)
       this._renderShaderBox(time, audioMetrics, noteHit, activePitch, activeVideo);
 
-      // 3. composite webgl canvas into main 2d canvas
       if (this.glCanvas) {
         ctx.drawImage(this.glCanvas, 0, 0, W, H);
       } else {
@@ -577,7 +556,6 @@
         ctx.fillRect(0, 0, W, H);
       }
 
-      // 4. build box 2 framecontext
       const duration = this.project?.duration || 30.0;
       const frameContext = {
         audio: {
@@ -618,7 +596,6 @@
         }
       };
 
-      // 5. execute box 2 drawscript
       if (typeof this.compiledDrawScript === 'function') {
         try {
           this.compiledDrawScript(ctx, W, H, frameContext, this.state);
@@ -628,6 +605,20 @@
       }
 
       this.lastTriggeredTime = time;
+    }
+
+    cleanup() {
+      const gl = this.gl;
+      if (gl) {
+        if (this.quadBuffer) gl.deleteBuffer(this.quadBuffer);
+        if (this.fftTexture) gl.deleteTexture(this.fftTexture);
+        if (this.videoTexture) gl.deleteTexture(this.videoTexture);
+        if (this.glProgram) gl.deleteProgram(this.glProgram);
+      }
+      this.quadBuffer = null;
+      this.fftTexture = null;
+      this.videoTexture = null;
+      this.glProgram = null;
     }
   }
 

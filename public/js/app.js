@@ -166,7 +166,6 @@
       const num = state.project.sampleNumber ? `#${String(state.project.sampleNumber).replace(/^#?\s*0*/, '') || '1'} - ` : '';
       els.headerPreviewPill.textContent = `[${num}${state.project.title || 'untitled'} · ${state.project.brand || 'aesttc'}]`;
     }
-    }
   }
 
   function syncVideoPoolSources() {
@@ -1636,10 +1635,10 @@
     try {
       const sessionRes = await fetch('/api/session');
       const sessionData = await sessionRes.json();
-      if (sessionData.authelia?.username) {
+      if (els.authBadge && sessionData.authelia?.username) {
         els.authBadge.textContent = `authelia · ${sessionData.authelia.username.toLowerCase()}`;
       }
-      if (typeof window.VideoEncoder !== 'function') {
+      if (els.encoderBadge && typeof window.VideoEncoder !== 'function') {
         els.encoderBadge.textContent = 'encoder: mediarecorder 60fps';
       }
 

@@ -76,9 +76,7 @@ function jsonRequest(urlStr, method, headers, bodyObj) {
   });
 }
 
-/**
- * Multipart upload of rendered MP4 to Postiz /upload endpoint
- */
+// multipart upload of rendered mp4 to postiz /upload endpoint
 function uploadMediaToPostiz(baseUrl, apiKey, filePath) {
   return new Promise((resolve, reject) => {
     const boundary = `----SampleVisBoundary${Date.now().toString(16)}`;

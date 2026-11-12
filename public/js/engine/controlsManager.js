@@ -1,9 +1,4 @@
-/**
- * controlsmanager — dynamic sidebar control builder for box 3 (controlsbox)
- *
- * inspects `preset.controlsbox.fields` and binds live values to both
- * webgl shader uniforms and canvas 2d overlay controls.
- */
+// dynamic sidebar control builder for preset controlsBox schemas
 (function () {
   'use strict';
 

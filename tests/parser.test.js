@@ -52,3 +52,4 @@ testCases.forEach(({ input, expected }, idx) => {
 });
 
 console.log('\nAll filename parser parity tests passed successfully!');
+
