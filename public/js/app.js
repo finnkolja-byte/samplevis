@@ -68,6 +68,8 @@
     dropMarkerTag: document.getElementById('dropMarkerTag'),
     timelinePlayhead: document.getElementById('timelinePlayhead'),
     headerPreviewTag: document.getElementById('headerPreviewTag'),
+    clipsSection: document.getElementById('clipsSection'),
+    clipsSectionTitle: document.getElementById('clipsSectionTitle'),
     autoPickChordClipsBtn: document.getElementById('autoPickChordClipsBtn'),
     shuffleClipBtn: document.getElementById('shuffleClipBtn'),
     unselectAllClipsBtn: document.getElementById('unselectAllClipsBtn'),
@@ -117,6 +119,23 @@
   visualizer = window.templateRegistry.activeTemplate;
   if (els.topActiveDesignLabel && visualizer) {
     els.topActiveDesignLabel.textContent = visualizer.name;
+  }
+  applyTemplateModules(visualizer);
+
+  function applyTemplateModules(tpl) {
+    if (!tpl) return;
+    const clipModule = tpl.modules?.clips || tpl.preset?.modules?.clips || tpl.features?.clips;
+    const clipsEnabled = clipModule !== false && (clipModule?.enabled !== false);
+
+    if (els.clipsSection) {
+      els.clipsSection.hidden = !clipsEnabled;
+      if (clipsEnabled && els.clipsSectionTitle) {
+        els.clipsSectionTitle.textContent = clipModule?.label || 'clips';
+      }
+      if (clipsEnabled && clipModule?.category && els.fetchCategorySelect) {
+        els.fetchCategorySelect.value = clipModule.category;
+      }
+    }
   }
 
   function formatTime(sec) {
@@ -1600,6 +1619,7 @@
       if (els.topActiveDesignLabel) {
         els.topActiveDesignLabel.textContent = tpl.name;
       }
+      applyTemplateModules(tpl);
       if (typeof visualizer.setActiveVideos === 'function') {
         visualizer.setActiveVideos(videoPool);
       }
@@ -1617,11 +1637,16 @@
           els.canvasHousing.classList.toggle('aspect-16-9', nextAspect === '16:9');
         }
 
+        previewCanvas.width = nextAspect === '16:9' ? 1920 : 1080;
+        previewCanvas.height = nextAspect === '16:9' ? 1080 : 1920;
+
         if (typeof visualizer.setAspectRatio === 'function') {
           visualizer.setAspectRatio(nextAspect);
-        } else {
-          previewCanvas.width = nextAspect === '16:9' ? 1920 : 1080;
-          previewCanvas.height = nextAspect === '16:9' ? 1080 : 1920;
+        }
+
+        const activeVid = getActiveVideoForTime(state.currentTime);
+        if (visualizer && typeof visualizer.renderFrame === 'function') {
+          visualizer.renderFrame(state.currentTime, activeVid);
         }
 
         if (els.aspectRatioTelemetry) {

@@ -87,7 +87,7 @@
 
   --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-brand: 'Syne', 'Outfit', sans-serif;
+  --font-brand: 'Plus Jakarta Sans', var(--font-sans);
   --font-serif: 'Cormorant Garamond', ui-serif, Georgia, serif;
 }
 
@@ -229,14 +229,14 @@ button {
 
 .brand-mark {
   font-family: var(--font-brand);
-  font-weight: 700;
-  font-size: 17px;
-  letter-spacing: -0.03em;
+  font-weight: 550;
+  font-size: 14px;
+  letter-spacing: -0.015em;
   color: var(--ink-loud);
   line-height: 1;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  padding-right: 4px;
 }
 
 .divider-slash {

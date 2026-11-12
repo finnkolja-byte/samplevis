@@ -6,7 +6,7 @@
   <title>samplevis · night-sky constellation &amp; anime short studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&family=Geist+Mono:wght@400;500;600&family=Geist:wght@400;500;600&family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Space+Grotesk:wght@500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Geist:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600&family=Space+Grotesk:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
@@ -19,8 +19,6 @@
   <header class="topbar">
     <div class="topbar-left">
       <span class="brand-mark">samplevis</span>
-      <span class="divider-slash">·</span>
-      <span class="topbar-subtitle">reels studio</span>
       <button class="design-switcher-btn" id="openDesignModalBtn" type="button" title="switch visual design template">
         <span class="design-label-prefix">design:</span>
         <span class="design-label-active" id="topActiveDesignLabel">constellations</span>
@@ -54,7 +52,7 @@
         <div class="section-header">
           <span class="section-idx">01</span>
           <h2 class="section-title">sample &amp; midi source</h2>
-          <button class="btn-inline" id="reloadStarterBtn" type="button" title="reload #1 - meadows starter">load #1 meadows</button>
+          <button class="btn-inline" id="reloadStarterBtn" type="button" title="load initial default preset">load initial preset</button>
         </div>
 
         <div class="dropzone" id="sampleDropzone" tabindex="0">
@@ -161,12 +159,12 @@
       </div>
     </section>
 
-    <!-- column 3: anime clip selector & fetcher -->
-    <section class="panel panel-clips">
+    <!-- column 3: clips selector & fetcher -->
+    <section class="panel panel-clips" id="clipsSection">
       <div class="panel-section panel-grow">
         <div class="section-header">
           <span class="section-idx">04</span>
-          <h2 class="section-title">melancholic anime clips</h2>
+          <h2 class="section-title" id="clipsSectionTitle">clips</h2>
           <div class="header-actions">
             <button class="btn-inline" id="autoPickChordClipsBtn" type="button" title="select 4 distinct clips for chord cuts">pick 4</button>
             <button class="btn-inline" id="shuffleClipBtn" type="button">shuffle</button>

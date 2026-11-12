@@ -849,12 +849,214 @@
     }
   };
 
+  const AURA_SPECTRUM_PRESET = {
+    version: '1.0',
+    id: 'aura-spectrum',
+    meta: {
+      name: 'Aura Spectrum',
+      title: 'Aura Spectrum',
+      description: 'Audio-reactive liquid gradient aura and circular spectrum (zero clips)',
+      aspectRatio: '9:16',
+      badge: 'Procedural'
+    },
+    modules: {
+      clips: {
+        enabled: false
+      }
+    },
+    shaderBox: {
+      fragmentShader: `
+        precision mediump float;
+        varying vec2 v_uv;
+        uniform vec2 u_resolution;
+        uniform float u_time;
+        uniform float u_bass;
+        uniform float u_rms;
+        uniform float u_note_hit;
+        uniform float auraScale;
+
+        void main() {
+          vec2 uv = v_uv - 0.5;
+          float dist = length(uv);
+
+          // pulsing liquid aura radial gradient
+          float pulse = 0.35 + u_bass * 0.45 * (auraScale > 0.0 ? auraScale : 1.0);
+          float glow = smoothstep(pulse, 0.02, dist);
+
+          vec3 baseBg = vec3(0.06, 0.08, 0.14);
+          vec3 auraColor = vec3(0.35, 0.72, 0.55) * (0.8 + u_note_hit * 0.5);
+          vec3 innerWarmth = vec3(0.55, 0.85, 0.65) * u_rms;
+
+          vec3 col = baseBg + auraColor * glow * 0.65 + innerWarmth * smoothstep(0.2, 0.0, dist);
+
+          // subtle edge vignette
+          col *= 1.0 - smoothstep(0.3, 0.75, dist);
+
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `
+    },
+    frontUiBox: {
+      initScript: `
+        state.particles = [];
+        const W = project.aspectRatio === '16:9' ? 1920 : 1080;
+        const H = project.aspectRatio === '16:9' ? 1080 : 1920;
+        for (let i = 0; i < 60; i++) {
+          state.particles.push({
+            x: Math.random() * W,
+            y: Math.random() * H,
+            r: 1 + Math.random() * 2.5,
+            speed: 0.5 + Math.random() * 1.5,
+            alpha: 0.2 + Math.random() * 0.5
+          });
+        }
+      `,
+      drawScript: `
+        const controls = frame.controls || {};
+        const project = state.project || {};
+        const t = frame.audio.time;
+        const dur = frame.audio.duration || 30.0;
+        const dropTime = project.dropTime !== undefined ? project.dropTime : dur * 0.5;
+        const isPostDrop = t >= dropTime;
+        const dropAge = isPostDrop ? t - dropTime : -1;
+
+        const accent = controls.glowColor || '#83ca90';
+        const numBars = controls.barCount !== undefined ? Math.round(controls.barCount) : 48;
+        const typeScale = controls.typographyScale !== undefined ? controls.typographyScale : 1.0;
+
+        ctx.save();
+
+        // floating stardust particles
+        if (state.particles) {
+          ctx.fillStyle = accent;
+          state.particles.forEach((p) => {
+            const curY = (p.y - t * p.speed * 20) % height;
+            const y = curY < 0 ? curY + height : curY;
+            ctx.globalAlpha = p.alpha * (0.6 + frame.audio.rms * 0.4);
+            ctx.beginPath();
+            ctx.arc(p.x, y, p.r, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
+
+        // centered circular spectrum
+        const cx = width * 0.5;
+        const cy = height * 0.46;
+        const baseRadius = Math.min(width, height) * 0.22;
+        const bassPulse = frame.audio.bass * 28;
+
+        ctx.globalAlpha = 1.0;
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 3;
+
+        for (let i = 0; i < numBars; i++) {
+          const angle = (i / numBars) * Math.PI * 2 - Math.PI * 0.5;
+          const energy = frame.audio.rms * (Math.sin(t * 6 + i * 0.35) * 0.5 + 0.5);
+          const barLen = 6 + energy * (isPostDrop ? 90 : 50) + bassPulse * 0.5;
+
+          const x1 = cx + Math.cos(angle) * (baseRadius + bassPulse);
+          const y1 = cy + Math.sin(angle) * (baseRadius + bassPulse);
+          const x2 = cx + Math.cos(angle) * (baseRadius + bassPulse + barLen);
+          const y2 = cy + Math.sin(angle) * (baseRadius + bassPulse + barLen);
+
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
+
+        // center core ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, baseRadius + bassPulse, 0, Math.PI * 2);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.stroke();
+
+        // typography hud
+        ctx.textAlign = 'center';
+        ctx.font = \`600 \${Math.round(28 * typeScale)}px "Space Grotesk", sans-serif\`;
+        ctx.fillStyle = '#f0f7f2';
+        const numPart = project.sampleNumber ? \`#\${project.sampleNumber} · \` : '';
+        ctx.fillText(\`\${numPart}\${(project.title || 'untitled').toLowerCase()}\`, cx, cy + baseRadius + 75);
+
+        ctx.font = \`400 \${Math.round(16 * typeScale)}px "IBM Plex Mono", monospace\`;
+        ctx.fillStyle = '#9daea8';
+        const metaList = [
+          project.bpm ? \`\${project.bpm} bpm\` : null,
+          project.key ? project.key.toLowerCase() : null,
+          project.brand ? project.brand.toLowerCase() : null
+        ].filter(Boolean);
+        if (metaList.length > 0) {
+          ctx.fillText(metaList.join(' · '), cx, cy + baseRadius + 105);
+        }
+
+        // drop flash
+        if (isPostDrop && dropAge >= 0 && dropAge < 0.6) {
+          const flash = Math.pow(1 - dropAge / 0.6, 2.5);
+          ctx.fillStyle = \`rgba(255, 255, 255, \${flash * 0.4})\`;
+          ctx.fillRect(0, 0, width, height);
+        }
+
+        ctx.restore();
+      `
+    },
+    controlsBox: {
+      fields: [
+        {
+          id: 'glowColor',
+          target: 'both',
+          label: 'Aura Glow Color',
+          type: 'color',
+          defaultValue: '#83ca90'
+        },
+        {
+          id: 'auraScale',
+          target: 'shader_uniform',
+          label: 'Aura Radius',
+          type: 'slider',
+          defaultValue: 1.0,
+          min: 0.3,
+          max: 2.2,
+          step: 0.1
+        },
+        {
+          id: 'barCount',
+          target: 'overlay_control',
+          label: 'Spectrum Bars',
+          type: 'slider',
+          defaultValue: 48,
+          min: 24,
+          max: 96,
+          step: 4
+        },
+        {
+          id: 'typographyScale',
+          target: 'overlay_control',
+          label: 'HUD Typography Scale',
+          type: 'slider',
+          defaultValue: 1.0,
+          min: 0.7,
+          max: 1.6,
+          step: 0.05
+        }
+      ],
+      values: {
+        glowColor: '#83ca90',
+        auraScale: 1.0,
+        barCount: 48,
+        typographyScale: 1.0
+      }
+    }
+  };
+
   window.STARTER_PRESETS = {
-    'anime-chord-flow': ANIME_CHORD_FLOW_PRESET
+    'anime-chord-flow': ANIME_CHORD_FLOW_PRESET,
+    'aura-spectrum': AURA_SPECTRUM_PRESET
   };
   window.STARTER_PRESET_DEFINITIONS = {
     constellations: CONSTELLATIONS_PRESET,
     'cinematic-minimal': CINEMATIC_MINIMAL_PRESET,
-    'anime-chord-flow': ANIME_CHORD_FLOW_PRESET
+    'anime-chord-flow': ANIME_CHORD_FLOW_PRESET,
+    'aura-spectrum': AURA_SPECTRUM_PRESET
   };
 })();

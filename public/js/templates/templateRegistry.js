@@ -8,6 +8,7 @@ class ReelPresetTemplateAdapter {
     this.tagline = preset.meta?.description || '';
     this.badge = preset.meta?.badge || 'preset';
     this.preset = preset;
+    this.modules = preset.modules || preset.features || {};
     this.engine = null;
     this._project = null;
   }

@@ -60,6 +60,34 @@ class SampleVisualizer {
     this.stardust = this._createStardust(90);
     this.bgWarpLines = this._createBgWarpLines(36);
     this.preDropSparkles = this._createPreDropSparkles(150);
+    this.activeVideos = [];
+    this.aspectRatio = '9:16';
+  }
+
+  setActiveVideos(videos) {
+    this.activeVideos = Array.isArray(videos) ? videos : [];
+  }
+
+  setAspectRatio(ratio) {
+    this.aspectRatio = ratio;
+    const isWidescreen = ratio === '16:9';
+    this.width = isWidescreen ? 1920 : 1080;
+    this.height = isWidescreen ? 1080 : 1920;
+    if (this.canvas) {
+      this.canvas.width = this.width;
+      this.canvas.height = this.height;
+    }
+    this.pianoRollTop = Math.round(this.height * (isWidescreen ? 0.62 : 0.724));
+    this.pianoRollHeight = this.height - this.pianoRollTop;
+    this.skyTop = 0;
+    this.skyHeight = this.pianoRollTop;
+    this.skyCenterX = this.width * 0.5;
+    this.skyCenterY = this.skyHeight * 0.48;
+    this.bgStars = this._createBgStars(160);
+    this.stardust = this._createStardust(90);
+    this.bgWarpLines = this._createBgWarpLines(36);
+    this.preDropSparkles = this._createPreDropSparkles(150);
+    this.rebuildNoteNodes();
   }
 
   getDropTime() {

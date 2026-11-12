@@ -17,6 +17,15 @@
       this.badge = 'Signature';
       this.visualizer = null;
       this.params = {};
+      this.modules = {
+        clips: {
+          enabled: true,
+          label: 'clips',
+          category: 'all',
+          defaultCutMode: 'chord',
+          speedRamping: true
+        }
+      };
     }
 
     init(canvas, state) {
@@ -26,6 +35,24 @@
       this.params = this.visualizer.params;
       if (state && state.project) {
         this.visualizer.setProject(state.project);
+      }
+      if (state && state.aspectRatio) {
+        this.visualizer.setAspectRatio(state.aspectRatio);
+      }
+      if (state && state.videoPool) {
+        this.visualizer.setActiveVideos(state.videoPool);
+      }
+    }
+
+    setAspectRatio(ratio) {
+      if (this.visualizer && typeof this.visualizer.setAspectRatio === 'function') {
+        this.visualizer.setAspectRatio(ratio);
+      }
+    }
+
+    setActiveVideos(videos) {
+      if (this.visualizer && typeof this.visualizer.setActiveVideos === 'function') {
+        this.visualizer.setActiveVideos(videos);
       }
     }
 

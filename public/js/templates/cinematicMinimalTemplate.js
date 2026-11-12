@@ -16,6 +16,15 @@
       this.aspectRatio = '9:16';
       this.width = 1080;
       this.height = 1920;
+      this.modules = {
+        clips: {
+          enabled: true,
+          label: 'clips',
+          category: 'calm',
+          defaultCutMode: 'chord',
+          speedRamping: true
+        }
+      };
 
       this.params = {
         letterboxHeight: 200,
