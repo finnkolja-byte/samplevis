@@ -446,10 +446,15 @@ app.get('/api/presets', async (_req, res) => {
 
 const BASE62_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 function generateAlphanumericId(length = 12) {
-  const bytes = crypto.randomBytes(length);
   let out = '';
-  for (let i = 0; i < length; i++) {
-    out += BASE62_ALPHABET[bytes[i] % BASE62_ALPHABET.length];
+  // rejection sampling threshold (248 = 62 * 4) prevents modulo bias
+  while (out.length < length) {
+    const bytes = crypto.randomBytes(length);
+    for (let i = 0; i < bytes.length && out.length < length; i++) {
+      if (bytes[i] < 248) {
+        out += BASE62_ALPHABET[bytes[i] % 62];
+      }
+    }
   }
   return out;
 }
@@ -478,11 +483,17 @@ app.post('/api/presets', express.json({ limit: '5mb' }), async (req, res) => {
       return res.status(400).json({ error: 'Invalid preset payload' });
     }
 
-    const rawId = preset.id || generateAlphanumericId(12);
-    const id = String(rawId)
-      .trim()
-      .replace(/[^a-zA-Z0-9_-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+    let id;
+    if (preset.id) {
+      id = String(preset.id)
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    } else {
+      do {
+        id = generateAlphanumericId(12);
+      } while (fs.existsSync(path.join(CUSTOM_PRESETS_DIR, `${id}.json`)));
+    }
 
     if (!id) {
       return res.status(400).json({ error: 'Preset ID cannot be empty' });

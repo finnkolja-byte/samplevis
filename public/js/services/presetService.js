@@ -49,14 +49,19 @@
     generatePresetId(length = 12) {
       let out = '';
       if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-        const bytes = new Uint8Array(length);
-        crypto.getRandomValues(bytes);
-        for (let i = 0; i < length; i++) {
-          out += BASE62_ALPHABET[bytes[i] % BASE62_ALPHABET.length];
+        // rejection sampling (248 = 62 * 4) prevents modulo bias
+        while (out.length < length) {
+          const bytes = new Uint8Array(length);
+          crypto.getRandomValues(bytes);
+          for (let i = 0; i < bytes.length && out.length < length; i++) {
+            if (bytes[i] < 248) {
+              out += BASE62_ALPHABET[bytes[i] % 62];
+            }
+          }
         }
       } else {
         for (let i = 0; i < length; i++) {
-          out += BASE62_ALPHABET[Math.floor(Math.random() * BASE62_ALPHABET.length)];
+          out += BASE62_ALPHABET[Math.floor(Math.random() * 62)];
         }
       }
       return out;
