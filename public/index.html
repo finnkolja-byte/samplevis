@@ -302,25 +302,71 @@
         <button class="btn-inline" id="closeAiSettingsBtn" type="button">close [esc]</button>
       </div>
       <div class="modal-body">
-        <p class="design-modal-subtext">configure your personal api key for client-side ai preset generation. keys are stored locally in your browser and never sent to external servers.</p>
+        <p class="design-modal-subtext">configure your personal api key or local model for viz. credentials stay strictly in your browser's local storage.</p>
 
         <label class="field">
-          <span class="field-label">api key</span>
-          <input type="password" id="byokApiKeyInput" placeholder="sk-..." autocomplete="off" />
+          <span class="field-label">provider</span>
+          <select id="byokProviderSelect">
+            <option value="deepseek">DeepSeek API (deepseek-chat / deepseek-reasoner)</option>
+            <option value="deepinfra">DeepInfra (DeepSeek V3 / R1 / Qwen)</option>
+            <option value="openrouter">OpenRouter (Multi-Model Gateway)</option>
+            <option value="gemini">Google Gemini API</option>
+            <option value="anthropic">Anthropic Claude API</option>
+            <option value="openai">OpenAI API</option>
+            <option value="custom">Custom / Local Model (Ollama, LM Studio, vLLM)</option>
+          </select>
         </label>
 
         <label class="field">
-          <span class="field-label">api base url (openai-compatible)</span>
-          <input type="text" id="byokBaseUrlInput" value="https://api.deepinfra.com/v1/openai" placeholder="https://api.deepinfra.com/v1/openai" />
+          <span class="field-label" id="byokApiKeyLabel">api key</span>
+          <input type="password" id="byokApiKeyInput" placeholder="sk-... (optional for local models)" autocomplete="off" />
         </label>
 
-        <label class="field">
-          <span class="field-label">model name</span>
-          <input type="text" id="byokModelInput" value="deepseek-ai/DeepSeek-V3" placeholder="deepseek-ai/DeepSeek-V3" />
-        </label>
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">model name</span>
+            <input type="text" id="byokModelInput" list="byokModelSuggestions" value="deepseek-ai/DeepSeek-V3" placeholder="model id" />
+            <datalist id="byokModelSuggestions"></datalist>
+          </label>
+          <label class="field">
+            <span class="field-label">api base url</span>
+            <input type="text" id="byokBaseUrlInput" value="https://api.deepinfra.com/v1/openai" placeholder="https://..." />
+          </label>
+        </div>
 
-        <div class="modal-actions" style="margin-top: 14px;">
+        <details class="byok-advanced-details" id="byokCustomOptions">
+          <summary class="field-label" style="cursor: pointer; margin: 10px 0 6px;">advanced &amp; custom protocol options</summary>
+          <div class="field-row">
+            <label class="field">
+              <span class="field-label">api protocol</span>
+              <select id="byokProtocolSelect">
+                <option value="openai">OpenAI-Compatible (/chat/completions)</option>
+                <option value="anthropic">Anthropic Messages (/messages)</option>
+                <option value="gemini">Google Gemini (:generateContent)</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">temperature</span>
+              <input type="number" id="byokTemperatureInput" value="0.3" min="0" max="2" step="0.1" />
+            </label>
+            <label class="field">
+              <span class="field-label">max tokens</span>
+              <input type="number" id="byokMaxTokensInput" value="3500" min="256" max="16384" step="128" />
+            </label>
+          </div>
+          <label class="checkbox-row" style="margin: 6px 0;">
+            <input type="checkbox" id="byokJsonModeCheckbox" checked />
+            <span>strict json mode (response_format: json_object)</span>
+          </label>
+          <label class="field">
+            <span class="field-label">extra headers (optional json)</span>
+            <input type="text" id="byokExtraHeadersInput" placeholder='{"X-Custom-Header": "value"}' />
+          </label>
+        </details>
+
+        <div class="modal-actions" style="margin-top: 14px; display: flex; align-items: center; gap: 10px;">
           <button class="btn btn-primary" id="saveAiSettingsBtn" type="button">save settings</button>
+          <button class="btn btn-ghost" id="testAiSettingsBtn" type="button">test connection</button>
           <span class="save-status-msg" id="aiSettingsSaveStatus"></span>
         </div>
       </div>

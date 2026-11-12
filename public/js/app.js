@@ -1595,12 +1595,57 @@
         if (e.target === els.designModal) closeDesignModal();
       });
     }
+    function populateModelSuggestions(providerId) {
+      const datalist = document.getElementById('byokModelSuggestions');
+      if (!datalist || !window.ByokAiProvider) return;
+      const presets = window.ByokAiProvider.getPresets();
+      const preset = presets[providerId];
+      datalist.innerHTML = '';
+      if (preset?.suggestedModels) {
+        preset.suggestedModels.forEach((m) => {
+          const opt = document.createElement('option');
+          opt.value = m;
+          datalist.appendChild(opt);
+        });
+      }
+    }
+
+    function readByokForm() {
+      return {
+        provider: document.getElementById('byokProviderSelect')?.value || 'deepinfra',
+        protocol: document.getElementById('byokProtocolSelect')?.value || 'openai',
+        apiKey: els.byokApiKeyInput?.value || '',
+        baseUrl: els.byokBaseUrlInput?.value || '',
+        model: els.byokModelInput?.value || '',
+        temperature: parseFloat(document.getElementById('byokTemperatureInput')?.value || '0.3'),
+        maxTokens: parseInt(document.getElementById('byokMaxTokensInput')?.value || '3500', 10),
+        jsonMode: Boolean(document.getElementById('byokJsonModeCheckbox')?.checked),
+        extraHeaders: document.getElementById('byokExtraHeadersInput')?.value || ''
+      };
+    }
+
     function openAiSettingsModal() {
+      const providerSelect = document.getElementById('byokProviderSelect');
+      const protocolSelect = document.getElementById('byokProtocolSelect');
+      const tempInput = document.getElementById('byokTemperatureInput');
+      const maxTokInput = document.getElementById('byokMaxTokensInput');
+      const jsonCheck = document.getElementById('byokJsonModeCheckbox');
+      const extraHeadersInput = document.getElementById('byokExtraHeadersInput');
+      const customDetails = document.getElementById('byokCustomOptions');
+
       if (window.ByokAiProvider) {
         const s = window.ByokAiProvider.getSettings();
+        if (providerSelect) providerSelect.value = s.provider;
+        if (protocolSelect) protocolSelect.value = s.protocol;
         if (els.byokApiKeyInput) els.byokApiKeyInput.value = s.apiKey;
         if (els.byokBaseUrlInput) els.byokBaseUrlInput.value = s.baseUrl;
         if (els.byokModelInput) els.byokModelInput.value = s.model;
+        if (tempInput) tempInput.value = String(s.temperature);
+        if (maxTokInput) maxTokInput.value = String(s.maxTokens);
+        if (jsonCheck) jsonCheck.checked = s.jsonMode;
+        if (extraHeadersInput) extraHeadersInput.value = s.extraHeaders;
+        if (customDetails) customDetails.open = s.provider === 'custom';
+        populateModelSuggestions(s.provider);
       }
       if (els.aiSettingsSaveStatus) els.aiSettingsSaveStatus.textContent = '';
       if (els.aiSettingsModal) els.aiSettingsModal.hidden = false;
@@ -1608,6 +1653,23 @@
 
     function closeAiSettingsModal() {
       if (els.aiSettingsModal) els.aiSettingsModal.hidden = true;
+    }
+
+    const byokProviderSelect = document.getElementById('byokProviderSelect');
+    if (byokProviderSelect) {
+      byokProviderSelect.addEventListener('change', () => {
+        if (!window.ByokAiProvider) return;
+        const presets = window.ByokAiProvider.getPresets();
+        const preset = presets[byokProviderSelect.value];
+        if (!preset) return;
+        if (els.byokBaseUrlInput) els.byokBaseUrlInput.value = preset.baseUrl;
+        if (els.byokModelInput) els.byokModelInput.value = preset.defaultModel;
+        const protocolSelect = document.getElementById('byokProtocolSelect');
+        if (protocolSelect) protocolSelect.value = preset.protocol;
+        const customDetails = document.getElementById('byokCustomOptions');
+        if (customDetails) customDetails.open = byokProviderSelect.value === 'custom';
+        populateModelSuggestions(byokProviderSelect.value);
+      });
     }
 
     if (els.openAiSettingsBtn) {
@@ -1624,11 +1686,9 @@
     if (els.saveAiSettingsBtn) {
       els.saveAiSettingsBtn.addEventListener('click', () => {
         if (window.ByokAiProvider) {
-          window.ByokAiProvider.saveSettings({
-            apiKey: els.byokApiKeyInput.value,
-            baseUrl: els.byokBaseUrlInput.value,
-            model: els.byokModelInput.value
-          });
+          window.ByokAiProvider.saveSettings(readByokForm());
+          const keyNotice = document.getElementById('vizKeyNotice');
+          if (keyNotice) keyNotice.hidden = window.ByokAiProvider.hasKey();
           if (els.aiSettingsSaveStatus) {
             els.aiSettingsSaveStatus.textContent = 'saved in browser';
             setTimeout(() => {
@@ -1636,6 +1696,27 @@
               closeAiSettingsModal();
             }, 600);
           }
+        }
+      });
+    }
+
+    const testAiBtn = document.getElementById('testAiSettingsBtn');
+    if (testAiBtn) {
+      testAiBtn.addEventListener('click', async () => {
+        if (!window.ByokAiProvider) return;
+        testAiBtn.disabled = true;
+        if (els.aiSettingsSaveStatus) els.aiSettingsSaveStatus.textContent = 'testing connection...';
+        try {
+          const reply = await window.ByokAiProvider.testConnection(readByokForm());
+          if (els.aiSettingsSaveStatus) {
+            els.aiSettingsSaveStatus.textContent = `connected (${reply.slice(0, 24)})`;
+          }
+        } catch (err) {
+          if (els.aiSettingsSaveStatus) {
+            els.aiSettingsSaveStatus.textContent = `error: ${err.message}`;
+          }
+        } finally {
+          testAiBtn.disabled = false;
         }
       });
     }
