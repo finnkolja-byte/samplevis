@@ -411,6 +411,42 @@
       return { all, active, triggered };
     }
 
+    _detectChordAt(time) {
+      const markers = this.project?.chordTimelineMarkers || [];
+      if (markers.length > 0) {
+        let best = markers[0];
+        for (const m of markers) {
+          if (time >= m.time) best = m;
+          else break;
+        }
+        if (best) return { name: best.name, time: best.time, root: best.name.replace(/[^A-Ga-g#b]/g, '') };
+      }
+
+      const { active } = this._getActiveAndTriggeredNotes(time);
+      if (active.length > 0) {
+        const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        const pitches = Array.from(new Set(active.map((n) => n.pitch % 12))).sort((a, b) => a - b);
+        const lowest = active.slice().sort((a, b) => a.pitch - b.pitch)[0].pitch % 12;
+        const root = NOTE_NAMES[lowest];
+
+        const hasMajorThird = pitches.includes((lowest + 4) % 12);
+        const hasMinorThird = pitches.includes((lowest + 3) % 12);
+        const hasSeventh = pitches.includes((lowest + 11) % 12);
+        const hasFlatSeventh = pitches.includes((lowest + 10) % 12);
+
+        let quality = 'maj';
+        if (hasMinorThird) {
+          quality = hasFlatSeventh ? 'm7' : 'm';
+        } else if (hasMajorThird) {
+          quality = hasSeventh ? 'maj7' : (hasFlatSeventh ? '7' : 'maj');
+        }
+        return { name: root + quality, root, quality, time };
+      }
+
+      const key = (this.project?.key || 'Bmaj').toUpperCase();
+      return { name: key, root: key.replace(/[^A-G#B]/g, ''), quality: '', time: 0 };
+    }
+
     _renderShaderBox(time, audioMetrics, noteTriggerImpulse, activePitch, activeVideo) {
       const gl = this.gl;
       if (!gl || !this.glProgram) return;
@@ -453,6 +489,18 @@
       if (uNoteHit) gl.uniform1f(uNoteHit, this.smoothedNoteHit);
       const uActivePitch = getLoc('u_active_pitch');
       if (uActivePitch) gl.uniform1f(uActivePitch, activePitch);
+
+      // chord cut impulse (aesthetic spike on chord transition that decays over 0.22s)
+      const chordCuts = this.project?.chordCutTimes || [];
+      let chordHit = 0.0;
+      for (const ct of chordCuts) {
+        const dt = time - ct;
+        if (dt >= 0 && dt < 0.22) {
+          chordHit = Math.max(chordHit, Math.pow(1.0 - dt / 0.22, 2.0));
+        }
+      }
+      const uChordHit = getLoc('u_chord_hit');
+      if (uChordHit) gl.uniform1f(uChordHit, chordHit);
 
       const uHasVideo = getLoc('u_has_video');
       const uVideoTex = getLoc('u_video_tex');
@@ -585,13 +633,15 @@
           activeNotes: active,
           triggeredNotes: triggered
         },
+        chord: this._detectChordAt(time),
         timeline: {
           dropTime: this.project?.dropTime !== undefined ? this.project.dropTime : duration * 0.5,
           dropBar: this.project?.dropBar || 9,
           markers: (this.preset?.features?.timeline?.markers || [
             { id: 'drop', label: 'drop', time: this.project?.dropTime !== undefined ? this.project.dropTime : duration * 0.5, color: '#83ca90' }
           ]),
-          chords: this.project?.chordTimelineMarkers || []
+          chords: this.project?.chordTimelineMarkers || [],
+          currentChord: this._detectChordAt(time)
         },
         clips: {
           count: this.activeVideos.length,
@@ -600,7 +650,34 @@
             if (!v || v.readyState < 2) return;
             destCtx.save();
             if (opts.opacity !== undefined) destCtx.globalAlpha *= opts.opacity;
-            destCtx.drawImage(v, x, y, w, h);
+
+            const vw = v.videoWidth || 1920;
+            const vh = v.videoHeight || 1080;
+            const vAspect = vw / vh;
+            const targetAspect = w / h;
+
+            if (opts.fit === 'contain') {
+              let dw = w, dh = h, dx = x, dy = y;
+              if (targetAspect > vAspect) {
+                dw = h * vAspect;
+                dx = x + (w - dw) * 0.5;
+              } else {
+                dh = w / vAspect;
+                dy = y + (h - dh) * 0.5;
+              }
+              destCtx.drawImage(v, 0, 0, vw, vh, dx, dy, dw, dh);
+            } else {
+              // default cover fit: crops overflow, never squishes
+              let sx = 0, sy = 0, sw = vw, sh = vh;
+              if (targetAspect > vAspect) {
+                sh = vw / targetAspect;
+                sy = (vh - sh) * 0.5;
+              } else {
+                sw = vh * targetAspect;
+                sx = (vw - sw) * 0.5;
+              }
+              destCtx.drawImage(v, sx, sy, sw, sh, x, y, w, h);
+            }
             destCtx.restore();
           },
           setShaderVideoClip: (clipIdx) => {

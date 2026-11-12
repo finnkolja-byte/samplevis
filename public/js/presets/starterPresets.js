@@ -677,9 +677,23 @@
     meta: {
       name: 'Anime Chord Flow',
       title: 'Anime Chord Flow',
-      description: 'Chord-synced clip cuts, chromatic aberration, and bar/beat HUD',
+      description: 'Chord-synced clip cuts, chromatic aberration, and live chord HUD',
       aspectRatio: '9:16',
       badge: 'Dynamic'
+    },
+    modules: {
+      clips: {
+        enabled: true,
+        label: 'clips',
+        category: 'all',
+        defaultCutMode: 'chord',
+        speedRamping: true,
+        startAtDrop: false
+      },
+      midiTracks: {
+        enabled: true,
+        label: 'midi tracks'
+      }
     },
 
     shaderBox: {
@@ -690,6 +704,7 @@
         uniform float u_time;
         uniform float u_bass;
         uniform float u_note_hit;
+        uniform float u_chord_hit;
         uniform sampler2D u_video_tex;
         uniform float u_has_video;
         uniform float glitchIntensity;
@@ -698,13 +713,26 @@
         void main() {
           vec2 uv = v_uv;
 
-          // bass pulse zoom
+          // cover-fit mapping for 16:9 video onto 9:16 canvas (prevents squishing)
+          float canvasAspect = u_resolution.x / u_resolution.y;
+          float videoAspect = 16.0 / 9.0;
+          if (canvasAspect < videoAspect) {
+            float scale = canvasAspect / videoAspect;
+            uv.x = (uv.x - 0.5) * scale + 0.5;
+          } else {
+            float scale = videoAspect / canvasAspect;
+            uv.y = (uv.y - 0.5) * scale + 0.5;
+          }
+
+          // subtle bass pulse zoom
           vec2 center = vec2(0.5);
-          float zoom = 1.0 - (u_bass * 0.035 * bassPulse);
+          float zoom = 1.0 - (u_bass * 0.022 * (bassPulse > 0.0 ? bassPulse : 1.0));
           uv = (uv - center) * zoom + center;
 
-          // chromatic aberration glitch on chord trigger
-          float glitch = u_note_hit * glitchIntensity * 0.015;
+          // chromatic aberration glitch ONLY on chord cut transitions (never hectic)
+          float gFactor = glitchIntensity > 0.0 ? glitchIntensity : 1.0;
+          float glitch = (u_chord_hit > 0.0 ? u_chord_hit : 0.0) * gFactor * 0.010;
+
           vec4 col;
           if (u_has_video > 0.5) {
             float r = texture2D(u_video_tex, uv + vec2(glitch, 0.0)).r;
@@ -716,7 +744,7 @@
           }
 
           // filmic edge vignette
-          float vig = 1.0 - distance(v_uv, vec2(0.5)) * 0.6;
+          float vig = 1.0 - distance(v_uv, vec2(0.5)) * 0.55;
           col.rgb *= vig;
 
           gl_FragColor = col;
@@ -727,13 +755,11 @@
     frontUiBox: {
       initScript: `
         state.project = project;
-        state.chordNames = (project && project.chords && project.chords.length) ? project.chords : [];
-        state.currentChordIdx = 0;
       `,
 
       drawScript: `
         const controls = frame.controls || {};
-        const project = state.project || {};
+        const project = frame.project || state.project || {};
         const t = frame.audio.time;
         const dur = frame.audio.duration || 30.0;
         const bpm = project.bpm || 120;
@@ -743,60 +769,80 @@
         // current bar & beat
         const currentBar = Math.floor(t / barSec) + 1;
         const currentBeat = Math.floor((t % barSec) / secPerBeat) + 1;
+        const accent = controls.accentColor || '#83ca90';
 
-        // overlay kinetic hud
         ctx.save();
 
-        ctx.font = '600 36px "Space Grotesk", sans-serif';
-        ctx.fillStyle = '#ffffff';
+        // top-left kinetic timing HUD
         ctx.textAlign = 'left';
-        ctx.fillText(\`BAR \${String(currentBar).padStart(2, '0')}.\${currentBeat}\`, 60, 120);
+        ctx.font = '600 36px "Space Grotesk", sans-serif';
+        ctx.fillStyle = '#f0f7f2';
+        ctx.fillText(\`BAR \${String(currentBar).padStart(2, '0')}.\${currentBeat}\`, 60, 110);
 
         const subMeta = [
-          project.key ? project.key.toUpperCase() : null,
-          project.bpm ? \`\${project.bpm} BPM\` : null
+          project.bpm ? \`\${project.bpm} BPM\` : null,
+          project.key ? project.key.toUpperCase() : null
         ].filter(Boolean).join(' · ');
         if (subMeta) {
-          ctx.font = '400 18px "IBM Plex Mono", monospace';
-          ctx.fillStyle = '#83ca90';
-          ctx.fillText(subMeta, 60, 155);
+          ctx.font = '500 18px "Geist Mono", monospace';
+          ctx.fillStyle = accent;
+          ctx.fillText(subMeta, 60, 142);
         }
 
-        const cuts = project.chordCutTimes || [];
-        let chordIdx = -1;
-        for (let i = cuts.length - 1; i >= 0; i--) {
-          if (t >= cuts[i]) {
-            chordIdx = i;
-            break;
-          }
-        }
+        // top-right "Current Chord" display
+        const activeChord = frame.chord?.name || project.key || 'Bmaj';
+        const chordWidth = 240;
+        const chordHeight = 76;
+        const chordX = width - 60 - chordWidth;
+        const chordY = 75;
 
-        let chordDisplay = '';
-        if (state.chordNames && state.chordNames.length > 0 && chordIdx >= 0) {
-          chordDisplay = state.chordNames[chordIdx % state.chordNames.length];
-        } else if (frame.midi && frame.midi.activeNotes && frame.midi.activeNotes.length > 0) {
-          const names = Array.from(new Set(frame.midi.activeNotes.map((n) => (n.name || 'note').replace(/\\d+$/, ''))));
-          chordDisplay = names.slice(0, 4).join(' ');
-        } else if (chordIdx >= 0) {
-          chordDisplay = \`CHORD \${chordIdx + 1}\`;
-        }
-
-        if (chordDisplay) {
-          ctx.textAlign = 'right';
-          ctx.font = '500 24px "IBM Plex Mono", monospace';
-          ctx.fillStyle = '#f0f7f2';
-          ctx.fillText(chordDisplay.toUpperCase(), width - 60, 120);
-        }
-
-        const beatFrac = (t % secPerBeat) / secPerBeat;
-        const ringAlpha = (1 - beatFrac) * 0.45;
-        const ringRadius = 12 + beatFrac * 28;
-
-        ctx.strokeStyle = \`rgba(131, 202, 144, \${ringAlpha})\`;
-        ctx.lineWidth = 2;
+        // frosted glass backing panel for current chord
+        ctx.fillStyle = 'rgba(18, 24, 41, 0.65)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.arc(width - 60, 195, ringRadius, 0, Math.PI * 2);
+        if (ctx.roundRect) {
+          ctx.roundRect(chordX, chordY, chordWidth, chordHeight, 8);
+        } else {
+          ctx.rect(chordX, chordY, chordWidth, chordHeight);
+        }
+        ctx.fill();
         ctx.stroke();
+
+        // chord label & tag
+        ctx.font = '600 11px "Geist Mono", monospace';
+        ctx.fillStyle = accent;
+        ctx.textAlign = 'left';
+        ctx.fillText('CURRENT CHORD', chordX + 16, chordY + 24);
+
+        // chord name
+        ctx.font = '700 28px "Space Grotesk", sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(activeChord.toUpperCase(), chordX + 16, chordY + 58);
+
+        // active notes or root indicator
+        if (frame.midi && frame.midi.activeNotes && frame.midi.activeNotes.length > 0) {
+          const noteNames = Array.from(new Set(frame.midi.activeNotes.map(n => (n.name || 'n').replace(/\\d+$/, '')))).slice(0, 4);
+          ctx.font = '500 12px "Geist Mono", monospace';
+          ctx.fillStyle = '#9daea8';
+          ctx.textAlign = 'right';
+          ctx.fillText(noteNames.join(' '), chordX + chordWidth - 16, chordY + 54);
+        }
+
+        // subtle audio spectrum bars along bottom edge
+        const numBars = 48;
+        const specW = width - 120;
+        const barW = (specW / numBars) * 0.65;
+        const startX = 60;
+        const baseY = height - 80;
+
+        for (let i = 0; i < numBars; i++) {
+          const energy = frame.audio.rms * (Math.sin(t * 6 + i * 0.35) * 0.5 + 0.5);
+          const barH = Math.max(3, energy * 65);
+          ctx.fillStyle = accent;
+          ctx.globalAlpha = 0.85;
+          ctx.fillRect(startX + i * (specW / numBars), baseY - barH, barW, barH);
+        }
 
         ctx.restore();
       `
@@ -805,13 +851,20 @@
     controlsBox: {
       fields: [
         {
+          id: 'accentColor',
+          target: 'both',
+          label: 'HUD Accent Color',
+          type: 'color',
+          defaultValue: '#83ca90'
+        },
+        {
           id: 'glitchIntensity',
           target: 'shader_uniform',
-          label: 'Chord Cut Glitch',
+          label: 'Chord Transition Glitch',
           type: 'slider',
           defaultValue: 1.0,
           min: 0.0,
-          max: 3.0,
+          max: 2.5,
           step: 0.1
         },
         {
@@ -821,30 +874,14 @@
           type: 'slider',
           defaultValue: 1.0,
           min: 0.0,
-          max: 2.5,
+          max: 2.0,
           step: 0.1
-        },
-        {
-          id: 'cutMode',
-          target: 'overlay_control',
-          label: 'Clip Cut Mode',
-          type: 'select',
-          defaultValue: 'chord',
-          options: ['chord', 'single', '2bar', '4bar', 'impact']
-        },
-        {
-          id: 'speedRamping',
-          target: 'overlay_control',
-          label: 'Speed Ramp Cuts',
-          type: 'toggle',
-          defaultValue: true
         }
       ],
       values: {
+        accentColor: '#83ca90',
         glitchIntensity: 1.0,
-        bassPulse: 1.0,
-        cutMode: 'chord',
-        speedRamping: true
+        bassPulse: 1.0
       }
     }
   };

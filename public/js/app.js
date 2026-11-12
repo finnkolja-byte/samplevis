@@ -70,6 +70,7 @@
     timelinePlayhead: document.getElementById('timelinePlayhead'),
     headerPreviewTag: document.getElementById('headerPreviewTag'),
     midiTracksSection: document.getElementById('midiTracksSection'),
+    midiTracksTitle: document.getElementById('midiTracksTitle'),
     clipsSection: document.getElementById('clipsSection'),
     clipsSectionTitle: document.getElementById('clipsSectionTitle'),
     autoPickChordClipsBtn: document.getElementById('autoPickChordClipsBtn'),
@@ -150,6 +151,9 @@
     const midiEnabled = tpl.id === 'constellations' || (midiModule !== undefined && midiModule.enabled !== false);
     if (els.midiTracksSection) {
       els.midiTracksSection.hidden = !midiEnabled;
+      if (midiEnabled && els.midiTracksTitle) {
+        els.midiTracksTitle.textContent = midiModule?.label || (tpl.id === 'constellations' ? 'midi constellation tracks' : 'midi tracks');
+      }
     }
   }
   window.applyTemplateModules = applyTemplateModules;
@@ -227,7 +231,8 @@
   function getActiveVideoForTime(t) {
     if (!state.project || state.selectedClipIds.length === 0) return null;
     const dropTime = getProjectDropTime();
-    if (t < dropTime) return null;
+    const startAtDrop = visualizer?.modules?.clips?.startAtDrop === true || visualizer?.id === 'constellations';
+    if (startAtDrop && t < dropTime) return null;
 
     const cutMode = visualizer.params.cutMode || 'chord';
     if (cutMode === 'single' || state.selectedClipIds.length === 1) {
@@ -265,7 +270,8 @@
   function getClipTimeForTimestamp(t, activeVid) {
     if (!state.project || !activeVid) return 0;
     const dropTime = getProjectDropTime();
-    if (t < dropTime) return 0;
+    const startAtDrop = visualizer?.modules?.clips?.startAtDrop === true || visualizer?.id === 'constellations';
+    if (startAtDrop && t < dropTime) return 0;
 
     const dur = activeVid.duration || 6.0;
 
@@ -660,7 +666,8 @@
       }
       updateTransportReadouts(state.currentTime);
       const activeVid = getActiveVideoForTime(state.currentTime);
-      if (activeVid && state.currentTime >= getProjectDropTime()) {
+      const startAtDrop = visualizer?.modules?.clips?.startAtDrop === true || visualizer?.id === 'constellations';
+      if (activeVid && (!startAtDrop || state.currentTime >= getProjectDropTime())) {
         if (state.lastActiveVid !== activeVid) {
           state.lastActiveVid = activeVid;
           const clipTime = getClipTimeForTimestamp(state.currentTime, activeVid);
