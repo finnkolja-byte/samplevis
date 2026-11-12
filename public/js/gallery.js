@@ -24,7 +24,7 @@
     createCard.innerHTML = `
       <div class="new-preset-icon">+</div>
       <div class="new-preset-title">new blank preset</div>
-      <div class="new-preset-desc">create an empty 3-box visualizer template ready for custom code or ai generation.</div>
+      <div class="new-preset-desc">create an empty visualizer template ready for custom code or ai generation.</div>
     `;
     createCard.addEventListener('click', () => {
       window.open('/?preset=new_blank', '_blank');
@@ -52,7 +52,7 @@
           <span class="gallery-card-title">${tpl.name || tpl.id}</span>
           <span class="gallery-card-badge">${tpl.badge || (isCustom ? 'saved' : 'template')}</span>
         </div>
-        <div class="gallery-card-desc">${tpl.tagline || tpl.preset?.meta?.description || '3-box audio & visual reel preset.'}</div>
+        <div class="gallery-card-desc">${tpl.tagline || tpl.preset?.meta?.description || 'custom audio & visual reel preset.'}</div>
         <div class="gallery-card-footer">
           <span class="card-meta-tag">${isCustom ? 'local disk project' : 'built-in engine'}</span>
           <span class="gallery-card-btn">open in editor ↗</span>

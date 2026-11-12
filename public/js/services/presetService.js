@@ -134,7 +134,28 @@
       return Array.from(this.inMemoryCache.values());
     }
 
-    async savePreset(presetData) {
+    captureThumbnail(canvas, maxWidth = 360) {
+      if (!canvas || !canvas.width || !canvas.height) return null;
+      try {
+        const scale = Math.min(1, maxWidth / canvas.width);
+        const w = Math.max(1, Math.round(canvas.width * scale));
+        const h = Math.max(1, Math.round(canvas.height * scale));
+        const thumbCanvas = document.createElement('canvas');
+        thumbCanvas.width = w;
+        thumbCanvas.height = h;
+        const ctx = thumbCanvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.drawImage(canvas, 0, 0, w, h);
+        const webp = thumbCanvas.toDataURL('image/webp', 0.74);
+        if (webp && webp.startsWith('data:image/webp')) return webp;
+        return thumbCanvas.toDataURL('image/jpeg', 0.78);
+      } catch (err) {
+        console.warn('[PresetService] Thumbnail capture skipped:', err.message);
+        return null;
+      }
+    }
+
+    async savePreset(presetData, canvasEl = null) {
       if (!presetData || typeof presetData !== 'object') {
         throw new Error('Invalid preset data');
       }
@@ -146,16 +167,23 @@
         .replace(/[^a-z0-9_-]+/g, '-')
         .replace(/^-+|-+$/g, '');
 
+      const capturedThumb = canvasEl ? this.captureThumbnail(canvasEl) : null;
+      const thumbnail = capturedThumb ||
+        (typeof presetData.meta?.thumbnail === 'string' && presetData.meta.thumbnail.startsWith('data:image/')
+          ? presetData.meta.thumbnail
+          : null);
+
       const normalized = {
         version: presetData.version || '1.0',
         id,
         meta: {
           name: presetData.meta?.name || id,
           title: presetData.meta?.title || presetData.meta?.name || id,
-          description: presetData.meta?.description || 'Custom 3-box visual preset',
+          description: presetData.meta?.description || 'custom visual preset',
           aspectRatio: presetData.meta?.aspectRatio || '9:16',
           badge: presetData.meta?.badge || 'Custom',
           author: presetData.meta?.author || 'local',
+          thumbnail,
           createdAt: presetData.meta?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString()
         },

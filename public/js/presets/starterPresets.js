@@ -1176,14 +1176,91 @@
     }
   };
 
+  const NEW_BLANK_PRESET = {
+    version: '1.0',
+    id: 'new_blank',
+    meta: {
+      name: 'Blank Canvas',
+      title: 'Blank Canvas',
+      description: 'Clean 3-box starter template ready for Viz or custom shader/canvas code',
+      aspectRatio: '9:16',
+      badge: 'Blank'
+    },
+    modules: {
+      clips: { enabled: false, startAtDrop: false },
+      midiTracks: { enabled: false, label: 'midi tracks' }
+    },
+    shaderBox: {
+      fragmentShader: `
+        precision mediump float;
+        varying vec2 v_uv;
+        uniform vec2 u_resolution;
+        uniform float u_time;
+        uniform float u_bass;
+        uniform float u_rms;
+        uniform float u_chord_hit;
+        uniform vec3 accentColor;
+
+        void main() {
+          vec2 uv = v_uv;
+          vec3 bg = vec3(0.06, 0.09, 0.14);
+          float pulse = 0.25 + u_bass * 0.4 + u_chord_hit * 0.35;
+          float d = distance(uv, vec2(0.5));
+          vec3 glow = accentColor * exp(-d * 3.5) * pulse;
+          gl_FragColor = vec4(bg + glow, 1.0);
+        }
+      `
+    },
+    frontUiBox: {
+      initScript: `
+        state.project = project;
+      `,
+      drawScript: `
+        const project = frame.project || state.project || {};
+        const accent = frame.controls.accentColor || '#83ca90';
+        const title = project.title || 'untitled';
+        const chord = frame.chord?.name || '';
+
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.font = '600 42px "Space Grotesk", sans-serif';
+        ctx.fillStyle = '#f0f7f2';
+        ctx.fillText(title, width / 2, height * 0.5);
+
+        if (chord) {
+          ctx.font = '500 20px "Geist Mono", monospace';
+          ctx.fillStyle = accent;
+          ctx.fillText(chord.toUpperCase(), width / 2, height * 0.5 + 48);
+        }
+        ctx.restore();
+      `
+    },
+    controlsBox: {
+      fields: [
+        {
+          id: 'accentColor',
+          target: 'both',
+          label: 'Accent Color',
+          type: 'color',
+          defaultValue: '#83ca90'
+        }
+      ],
+      values: {
+        accentColor: '#83ca90'
+      }
+    }
+  };
+
   window.STARTER_PRESETS = {
     'anime-chord-flow': ANIME_CHORD_FLOW_PRESET,
-    'aura-spectrum': AURA_SPECTRUM_PRESET
+    'aura-spectrum': AURA_SPECTRUM_PRESET,
+    new_blank: NEW_BLANK_PRESET
   };
   window.STARTER_PRESET_DEFINITIONS = {
     constellations: CONSTELLATIONS_PRESET,
     'cinematic-minimal': CINEMATIC_MINIMAL_PRESET,
     'anime-chord-flow': ANIME_CHORD_FLOW_PRESET,
-    'aura-spectrum': AURA_SPECTRUM_PRESET
+    'aura-spectrum': AURA_SPECTRUM_PRESET,
+    new_blank: NEW_BLANK_PRESET
   };
 })();

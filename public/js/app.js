@@ -1734,7 +1734,280 @@
     }
   }
 
+  function initVizStudio() {
+    const drawer = document.getElementById('vizStudioDrawer');
+    const openBtn = document.getElementById('openVizStudioBtn');
+    const closeBtn = document.getElementById('closeVizStudioBtn');
+    const tabBtns = document.querySelectorAll('.viz-tab-btn');
+    const panes = {
+      viz: document.getElementById('vizPaneViz'),
+      shader: document.getElementById('vizPaneShader'),
+      overlay: document.getElementById('vizPaneOverlay'),
+      ui: document.getElementById('vizPaneUi')
+    };
+
+    const presetLabel = document.getElementById('vizActivePresetLabel');
+    const promptInput = document.getElementById('vizPromptInput');
+    const generateBtn = document.getElementById('vizGenerateBtn');
+    const undoBtn = document.getElementById('vizUndoBtn');
+    const keyNotice = document.getElementById('vizKeyNotice');
+    const openByokLink = document.getElementById('vizOpenByokLink');
+
+    const shaderEditor = document.getElementById('codeEditorShader');
+    const initEditor = document.getElementById('codeEditorInit');
+    const drawEditor = document.getElementById('codeEditorDraw');
+    const uiEditor = document.getElementById('codeEditorUi');
+
+    const applyBtn = document.getElementById('vizApplyCodeBtn');
+    const saveBtn = document.getElementById('vizSavePresetBtn');
+    const statusBar = document.getElementById('vizStudioStatus');
+
+    const undoStack = [];
+
+    function setStatus(msg, type = '') {
+      if (!statusBar) return;
+      statusBar.textContent = msg;
+      statusBar.className = `viz-status-bar ${type}`.trim();
+    }
+
+    function getActivePresetCopy() {
+      const tpl = window.templateRegistry?.activeTemplate;
+      const base = tpl?.preset || window.STARTER_PRESET_DEFINITIONS?.[tpl?.id];
+      if (!base) {
+        return JSON.parse(JSON.stringify(window.STARTER_PRESET_DEFINITIONS.new_blank));
+      }
+      return JSON.parse(JSON.stringify(base));
+    }
+
+    function syncEditorsFromActive() {
+      const preset = getActivePresetCopy();
+      if (presetLabel) presetLabel.textContent = preset.meta?.name || preset.id || 'preset';
+      if (shaderEditor) shaderEditor.value = (preset.shaderBox?.fragmentShader || '').trim();
+      if (initEditor) initEditor.value = (preset.frontUiBox?.initScript || '').trim();
+      if (drawEditor) drawEditor.value = (preset.frontUiBox?.drawScript || '').trim();
+      if (uiEditor) {
+        uiEditor.value = JSON.stringify(
+          {
+            modules: preset.modules || {},
+            controlsBox: preset.controlsBox || { fields: [], values: {} }
+          },
+          null,
+          2
+        );
+      }
+      if (keyNotice) {
+        keyNotice.hidden = Boolean(window.ByokAiProvider && window.ByokAiProvider.hasKey());
+      }
+      if (undoBtn) {
+        undoBtn.disabled = undoStack.length === 0;
+      }
+    }
+
+    async function hotReloadPreset(nextPreset) {
+      if (!nextPreset.id) nextPreset.id = window.templateRegistry?.activeTemplateId || `viz_${Date.now()}`;
+      if (!nextPreset.version) nextPreset.version = '1.0';
+      if (!nextPreset.meta) nextPreset.meta = { name: nextPreset.id, aspectRatio: state.aspectRatio || '9:16' };
+
+      // force re-registration of the updated 3-box definition
+      window.templateRegistry.templates.delete(nextPreset.id);
+      window.templateRegistry.registerPreset(nextPreset);
+
+      await window.templateRegistry.setTemplate(
+        nextPreset.id,
+        previewCanvas,
+        state,
+        els.templateControlsContainer
+      );
+
+      visualizer = window.templateRegistry.activeTemplate;
+      if (els.topActiveDesignLabel && visualizer) {
+        els.topActiveDesignLabel.textContent = visualizer.name;
+      }
+      applyTemplateModules(visualizer);
+
+      if (typeof visualizer.setAspectRatio === 'function') {
+        visualizer.setAspectRatio(state.aspectRatio || '9:16');
+      }
+      updateMetadataToVisualizer();
+
+      const activeVid = getActiveVideoForTime(state.currentTime);
+      if (visualizer && typeof visualizer.renderFrame === 'function') {
+        visualizer.renderFrame(state.currentTime, activeVid);
+      }
+
+      syncEditorsFromActive();
+    }
+
+    function openDrawer() {
+      if (!drawer) return;
+      syncEditorsFromActive();
+      drawer.hidden = false;
+      setStatus('ready');
+    }
+
+    function closeDrawer() {
+      if (!drawer) return;
+      drawer.hidden = true;
+    }
+
+    if (openBtn) openBtn.addEventListener('click', () => (drawer.hidden ? openDrawer() : closeDrawer()));
+    if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+
+    if (openByokLink) {
+      openByokLink.addEventListener('click', () => {
+        const aiBtn = document.getElementById('openAiSettingsBtn');
+        if (aiBtn) aiBtn.click();
+      });
+    }
+
+    tabBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.vizTab;
+        tabBtns.forEach((b) => b.classList.toggle('active', b === btn));
+        Object.entries(panes).forEach(([key, pane]) => {
+          if (pane) {
+            pane.hidden = key !== target;
+            pane.classList.toggle('active', key === target);
+          }
+        });
+      });
+    });
+
+    document.querySelectorAll('.viz-chip-btn').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        if (!promptInput) return;
+        const text = chip.dataset.prompt || '';
+        promptInput.value = promptInput.value ? `${promptInput.value.trim()} ${text}` : text;
+        promptInput.focus();
+      });
+    });
+
+    if (applyBtn) {
+      applyBtn.addEventListener('click', async () => {
+        try {
+          const current = getActivePresetCopy();
+          undoStack.push(current);
+
+          const parsedUi = JSON.parse(uiEditor.value || '{}');
+          const updated = {
+            ...current,
+            modules: parsedUi.modules || current.modules || {},
+            shaderBox: {
+              fragmentShader: shaderEditor.value
+            },
+            frontUiBox: {
+              initScript: initEditor.value,
+              drawScript: drawEditor.value
+            },
+            controlsBox: parsedUi.controlsBox || current.controlsBox || { fields: [], values: {} }
+          };
+
+          await hotReloadPreset(updated);
+          setStatus('applied & reloaded', 'success');
+        } catch (err) {
+          undoStack.pop();
+          setStatus(`error: ${err.message}`, 'error');
+        }
+      });
+    }
+
+    if (generateBtn) {
+      generateBtn.addEventListener('click', async () => {
+        const promptText = promptInput?.value.trim();
+        if (!promptText) {
+          setStatus('enter a prompt for viz first', 'error');
+          return;
+        }
+        if (!window.ByokAiProvider?.hasKey()) {
+          setStatus('api key missing — open ai settings [byok]', 'error');
+          if (keyNotice) keyNotice.hidden = false;
+          return;
+        }
+
+        const previous = getActivePresetCopy();
+        generateBtn.disabled = true;
+        generateBtn.textContent = 'viz is designing...';
+        setStatus('generating 3-box preset with viz...');
+
+        try {
+          const generated = await window.ByokAiProvider.generatePreset(
+            promptText,
+            previous,
+            {
+              bpm: state.project?.bpm,
+              key: state.project?.key,
+              midi: { hasMidi: Boolean(state.project?.tracks?.length), tracks: state.project?.tracks },
+              clips: { count: state.selectedClipIds?.length || 0 },
+              aspectRatio: state.aspectRatio
+            }
+          );
+
+          undoStack.push(previous);
+          generated.id = previous.id === 'constellations' ? `viz_${Date.now()}` : previous.id;
+          if (!generated.meta) generated.meta = {};
+          generated.meta.badge = 'Viz AI';
+
+          await hotReloadPreset(generated);
+          setStatus('viz preset applied', 'success');
+        } catch (err) {
+          setStatus(`viz error: ${err.message}`, 'error');
+        } finally {
+          generateBtn.disabled = false;
+          generateBtn.textContent = 'generate with viz';
+        }
+      });
+    }
+
+    if (undoBtn) {
+      undoBtn.addEventListener('click', async () => {
+        if (undoStack.length === 0) return;
+        const prev = undoStack.pop();
+        await hotReloadPreset(prev);
+        setStatus('reverted to previous state', 'success');
+      });
+    }
+
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        const current = getActivePresetCopy();
+        const defaultTitle = current.meta?.name ? `${current.meta.name} (Custom)` : 'My Viz Preset';
+        const name = prompt('Save preset as:', defaultTitle);
+        if (!name || !name.trim()) return;
+
+        current.id = name.toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+        current.meta = {
+          ...(current.meta || {}),
+          name: name.trim(),
+          title: name.trim(),
+          badge: 'Custom',
+          updatedAt: new Date().toISOString()
+        };
+
+        try {
+          if (window.presetService) {
+            const saved = await window.presetService.savePreset(current);
+            await hotReloadPreset(saved);
+            setStatus(`saved "${saved.meta.name}"`, 'success');
+          }
+        } catch (err) {
+          setStatus(`save failed: ${err.message}`, 'error');
+        }
+      });
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        if (drawer.hidden) openDrawer();
+        else closeDrawer();
+      } else if (e.key === 'Escape' && drawer && !drawer.hidden) {
+        closeDrawer();
+      }
+    });
+  }
+
   initDesignSwitcher();
+  initVizStudio();
   initStarter();
   requestAnimationFrame(tick);
 })();

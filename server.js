@@ -483,10 +483,13 @@ app.post('/api/presets', express.json({ limit: '5mb' }), async (req, res) => {
       meta: {
         name: preset.meta?.name || id,
         title: preset.meta?.title || preset.meta?.name || id,
-        description: preset.meta?.description || 'Custom 3-box preset',
+        description: preset.meta?.description || 'custom visual preset',
         aspectRatio: preset.meta?.aspectRatio || '9:16',
         badge: preset.meta?.badge || 'Custom',
         author: preset.meta?.author || 'local',
+        thumbnail: typeof preset.meta?.thumbnail === 'string' && preset.meta.thumbnail.startsWith('data:image/')
+          ? preset.meta.thumbnail
+          : null,
         createdAt: preset.meta?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       },
