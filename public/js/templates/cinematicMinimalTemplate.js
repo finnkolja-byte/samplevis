@@ -567,11 +567,11 @@
             <label>HUD Accent</label>
             <span class="slider-val" id="valAccent">${accent}</span>
           </div>
-          <div class="color-palette-row" style="display: flex; gap: 8px; margin-top: 6px;">
-            <button type="button" class="btn-color-swatch ${accent === '#38bdf8' ? 'active' : ''}" data-color="#38bdf8" style="background:#38bdf8; width:28px; height:28px; border-radius:6px; border:2px solid ${accent === '#38bdf8' ? '#fff' : 'transparent'}; cursor:pointer;" title="Ice Cyan"></button>
-            <button type="button" class="btn-color-swatch ${accent === '#f59e0b' ? 'active' : ''}" data-color="#f59e0b" style="background:#f59e0b; width:28px; height:28px; border-radius:6px; border:2px solid ${accent === '#f59e0b' ? '#fff' : 'transparent'}; cursor:pointer;" title="Amber"></button>
-            <button type="button" class="btn-color-swatch ${accent === '#fb7185' ? 'active' : ''}" data-color="#fb7185" style="background:#fb7185; width:28px; height:28px; border-radius:6px; border:2px solid ${accent === '#fb7185' ? '#fff' : 'transparent'}; cursor:pointer;" title="Rose"></button>
-            <button type="button" class="btn-color-swatch ${accent === '#ffffff' ? 'active' : ''}" data-color="#ffffff" style="background:#ffffff; width:28px; height:28px; border-radius:6px; border:2px solid ${accent === '#ffffff' ? '#38bdf8' : 'transparent'}; cursor:pointer;" title="White"></button>
+          <div class="color-palette-row">
+            <button type="button" class="btn-color-swatch ${accent === '#38bdf8' ? 'active' : ''}" data-color="#38bdf8" style="background:#38bdf8" title="Ice Cyan"></button>
+            <button type="button" class="btn-color-swatch ${accent === '#f59e0b' ? 'active' : ''}" data-color="#f59e0b" style="background:#f59e0b" title="Amber"></button>
+            <button type="button" class="btn-color-swatch ${accent === '#fb7185' ? 'active' : ''}" data-color="#fb7185" style="background:#fb7185" title="Rose"></button>
+            <button type="button" class="btn-color-swatch ${accent === '#ffffff' ? 'active' : ''}" data-color="#ffffff" style="background:#ffffff" title="White"></button>
           </div>
         </div>
       `;
@@ -621,8 +621,7 @@
       const swatches = container.querySelectorAll('.btn-color-swatch');
       swatches.forEach((sw) => {
         sw.addEventListener('click', () => {
-          swatches.forEach((s) => (s.style.borderColor = 'transparent'));
-          sw.style.borderColor = '#ffffff';
+          swatches.forEach((s) => s.classList.toggle('active', s === sw));
           const color = sw.getAttribute('data-color');
           this.params.accentColor = color;
           container.querySelector('#valAccent').textContent = color;

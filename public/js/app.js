@@ -480,6 +480,9 @@
     const dropT = getProjectDropTime();
     const dropRatio = dropT / dur;
     const barW = W / peaks.length;
+    const theme = getComputedStyle(els.waveformContainer);
+    const wavePre = theme.getPropertyValue('--wave-pre').trim();
+    const wavePost = theme.getPropertyValue('--wave-post').trim();
 
     peaks.forEach((p, idx) => {
       const ratio = idx / peaks.length;
@@ -488,7 +491,7 @@
       const x = idx * barW;
       const y = (H - h) * 0.5;
 
-      ctx.fillStyle = isAfterDrop ? 'rgba(104, 200, 140, 0.82)' : 'rgba(150, 180, 165, 0.45)';
+      ctx.fillStyle = isAfterDrop ? wavePost : wavePre;
       ctx.fillRect(x, y, Math.max(1.5, barW - 1), h);
     });
 
@@ -501,7 +504,7 @@
       : null;
 
     if (cuts && cuts.length > 0) {
-      ctx.fillStyle = 'rgba(160, 228, 175, 0.75)';
+      ctx.fillStyle = theme.getPropertyValue('--wave-cut').trim();
       cuts.forEach((ct) => {
         const cx = (ct / dur) * W;
         ctx.fillRect(cx - 0.75, 0, 1.5, H);
