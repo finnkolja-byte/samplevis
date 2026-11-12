@@ -117,8 +117,9 @@
   const urlParams = new URLSearchParams(window.location.search);
   const requestedPreset = urlParams.get('preset');
   const activeTemplateId = requestedPreset || localStorage.getItem('samplevis_active_template_id') || 'constellations';
+  const initialTemplateId = window.templateRegistry.get(activeTemplateId) ? activeTemplateId : 'constellations';
   window.templateRegistry.setTemplate(
-    activeTemplateId,
+    initialTemplateId,
     previewCanvas,
     state,
     els.templateControlsContainer
@@ -807,23 +808,23 @@
   });
 
   if (els.speedRampToggle) {
-    els.speedRampToggle.checked = Boolean(visualizer.params.speedRamping);
+    els.speedRampToggle.checked = Boolean(visualizer?.params?.speedRamping);
     els.speedRampToggle.addEventListener('change', (e) => {
-      visualizer.params.speedRamping = e.target.checked;
+      if (visualizer?.params) visualizer.params.speedRamping = e.target.checked;
     });
   }
 
   if (els.dropGlitchToggle) {
-    els.dropGlitchToggle.checked = Boolean(visualizer.params.dropGlitch !== false);
+    els.dropGlitchToggle.checked = Boolean(visualizer?.params?.dropGlitch !== false);
     els.dropGlitchToggle.addEventListener('change', (e) => {
-      visualizer.params.dropGlitch = e.target.checked;
+      if (visualizer?.params) visualizer.params.dropGlitch = e.target.checked;
     });
   }
 
   if (els.autoFrameToggle) {
-    els.autoFrameToggle.checked = Boolean(visualizer.params.autoFrame !== false);
+    els.autoFrameToggle.checked = Boolean(visualizer?.params?.autoFrame !== false);
     els.autoFrameToggle.addEventListener('change', (e) => {
-      visualizer.params.autoFrame = e.target.checked;
+      if (visualizer?.params) visualizer.params.autoFrame = e.target.checked;
     });
   }
 
@@ -1569,7 +1570,31 @@
 
     if (window.presetService) {
       window.presetService.onPresetsChange(() => renderGalleryCards());
-      window.presetService.syncWithBackend().then(() => renderGalleryCards());
+      window.presetService.syncWithBackend().then(async () => {
+        if (
+          activeTemplateId &&
+          activeTemplateId !== window.templateRegistry.activeTemplateId &&
+          window.templateRegistry.get(activeTemplateId)
+        ) {
+          await window.templateRegistry.setTemplate(
+            activeTemplateId,
+            previewCanvas,
+            state,
+            els.templateControlsContainer
+          );
+          visualizer = window.templateRegistry.activeTemplate;
+          if (els.topPresetNameInput && visualizer) {
+            els.topPresetNameInput.value = visualizer.name;
+          }
+          applyTemplateModules(visualizer);
+          updateMetadataToVisualizer();
+          const activeVid = getActiveVideoForTime(state.currentTime);
+          if (visualizer && typeof visualizer.renderFrame === 'function') {
+            visualizer.renderFrame(state.currentTime, activeVid);
+          }
+        }
+        renderGalleryCards();
+      });
     }
 
     function openDesignModal() {
