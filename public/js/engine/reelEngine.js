@@ -279,10 +279,12 @@
     }
 
     reinitPresetState() {
-      this.state = {};
+      const projectData = this._buildProjectData();
+      this.state = {
+        project: projectData
+      };
       if (typeof this.compiledInitScript === 'function') {
         try {
-          const projectData = this._buildProjectData();
           const controls = this.preset?.controlsBox?.values || {};
           this.compiledInitScript(projectData, this.state, controls);
         } catch (err) {
@@ -599,6 +601,7 @@
           }
         },
         controls: this.preset?.controlsBox?.values || {},
+        project: this._buildProjectData(),
         assets: {
           coverImage: null
         }

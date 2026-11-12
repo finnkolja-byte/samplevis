@@ -68,6 +68,7 @@
     dropMarkerTag: document.getElementById('dropMarkerTag'),
     timelinePlayhead: document.getElementById('timelinePlayhead'),
     headerPreviewTag: document.getElementById('headerPreviewTag'),
+    midiTracksSection: document.getElementById('midiTracksSection'),
     clipsSection: document.getElementById('clipsSection'),
     clipsSectionTitle: document.getElementById('clipsSectionTitle'),
     autoPickChordClipsBtn: document.getElementById('autoPickChordClipsBtn'),
@@ -109,7 +110,10 @@
   };
 
   // initialize active template from registry
-  const activeTemplateId = localStorage.getItem('samplevis_active_template_id') || 'constellations';
+  // parse url search params for direct preset launching from gallery
+  const urlParams = new URLSearchParams(window.location.search);
+  const requestedPreset = urlParams.get('preset');
+  const activeTemplateId = requestedPreset || localStorage.getItem('samplevis_active_template_id') || 'constellations';
   window.templateRegistry.setTemplate(
     activeTemplateId,
     previewCanvas,
@@ -136,7 +140,15 @@
         els.fetchCategorySelect.value = clipModule.category;
       }
     }
+
+    const midiModule = tpl.modules?.midiTracks || tpl.preset?.modules?.midiTracks;
+    const midiEnabled = tpl.id === 'constellations' || (midiModule !== undefined && midiModule.enabled !== false);
+    if (els.midiTracksSection) {
+      els.midiTracksSection.hidden = !midiEnabled;
+    }
   }
+  window.applyTemplateModules = applyTemplateModules;
+  window.updateMetadataToVisualizer = updateMetadataToVisualizer;
 
   function formatTime(sec) {
     const s = Math.max(0, sec || 0);
@@ -152,12 +164,16 @@
     state.project.title = (els.inputTitle.value.trim() || 'untitled').toLowerCase();
     state.project.bpm = parseFloat(els.inputBpm.value) || 120;
     state.project.key = (els.inputKey.value.trim() || '').toLowerCase();
-    if (visualizer && visualizer.project) {
-      visualizer.project.brand = state.project.brand;
-      visualizer.project.sampleNumber = state.project.sampleNumber;
-      visualizer.project.title = state.project.title;
-      visualizer.project.bpm = state.project.bpm;
-      visualizer.project.key = state.project.key;
+    if (visualizer) {
+      if (typeof visualizer.setProject === 'function') {
+        visualizer.setProject(state.project);
+      } else if (visualizer.project) {
+        visualizer.project.brand = state.project.brand;
+        visualizer.project.sampleNumber = state.project.sampleNumber;
+        visualizer.project.title = state.project.title;
+        visualizer.project.bpm = state.project.bpm;
+        visualizer.project.key = state.project.key;
+      }
     }
 
     if (els.headerPreviewTag) {
@@ -1407,6 +1423,8 @@
           if (els.topActiveDesignLabel) {
             els.topActiveDesignLabel.textContent = tpl.name;
           }
+          applyTemplateModules(visualizer);
+          updateMetadataToVisualizer();
           renderGalleryCards();
           closeDesignModal();
 
@@ -1626,6 +1644,7 @@
       if (typeof visualizer.setAspectRatio === 'function') {
         visualizer.setAspectRatio(state.aspectRatio || '9:16');
       }
+      updateMetadataToVisualizer();
     });
 
     if (els.aspectRatioToggleBtn) {

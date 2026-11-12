@@ -40,12 +40,12 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-eval'"],
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
         imgSrc: ["'self'", 'data:', 'blob:'],
         mediaSrc: ["'self'", 'data:', 'blob:'],
-        connectSrc: ["'self'", 'blob:'],
+        connectSrc: ["'self'", 'blob:', 'https:'],
         workerSrc: ["'self'", 'blob:']
       }
     },

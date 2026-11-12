@@ -237,6 +237,30 @@ button {
   display: inline-flex;
   align-items: center;
   padding-right: 4px;
+  text-decoration: none;
+}
+
+.gallery-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-decoration: none;
+  box-shadow: var(--shadow-raised);
+  transition: all var(--dur-fast) var(--ease-standard);
+}
+
+.gallery-nav-btn:hover {
+  color: var(--accent-ink);
+  border-color: var(--accent-ring);
+  background: var(--accent-soft);
+  box-shadow: var(--shadow-raised-hover);
 }
 
 .divider-slash {
@@ -324,6 +348,12 @@ button {
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   overflow-y: auto;
+}
+
+[hidden],
+.panel[hidden],
+.panel-section[hidden] {
+  display: none !important;
 }
 
 .panel-left {

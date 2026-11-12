@@ -862,6 +862,9 @@
     modules: {
       clips: {
         enabled: false
+      },
+      midiTracks: {
+        enabled: false
       }
     },
     shaderBox: {
@@ -913,7 +916,7 @@
       `,
       drawScript: `
         const controls = frame.controls || {};
-        const project = state.project || {};
+        const project = frame.project || state.project || {};
         const t = frame.audio.time;
         const dur = frame.audio.duration || 30.0;
         const dropTime = project.dropTime !== undefined ? project.dropTime : dur * 0.5;
@@ -941,18 +944,19 @@
 
         // centered circular spectrum
         const cx = width * 0.5;
-        const cy = height * 0.46;
+        const cy = height * 0.44;
         const baseRadius = Math.min(width, height) * 0.22;
         const bassPulse = frame.audio.bass * 28;
 
         ctx.globalAlpha = 1.0;
         ctx.strokeStyle = accent;
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
 
         for (let i = 0; i < numBars; i++) {
           const angle = (i / numBars) * Math.PI * 2 - Math.PI * 0.5;
           const energy = frame.audio.rms * (Math.sin(t * 6 + i * 0.35) * 0.5 + 0.5);
-          const barLen = 6 + energy * (isPostDrop ? 90 : 50) + bassPulse * 0.5;
+          const barLen = 8 + energy * (isPostDrop ? 95 : 55) + bassPulse * 0.55;
 
           const x1 = cx + Math.cos(angle) * (baseRadius + bassPulse);
           const y1 = cy + Math.sin(angle) * (baseRadius + bassPulse);
@@ -968,26 +972,27 @@
         // center core ring
         ctx.beginPath();
         ctx.arc(cx, cy, baseRadius + bassPulse, 0, Math.PI * 2);
-        ctx.lineWidth = 1.5;
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
         ctx.stroke();
 
         // typography hud
         ctx.textAlign = 'center';
-        ctx.font = \`600 \${Math.round(28 * typeScale)}px "Space Grotesk", sans-serif\`;
+        ctx.font = \`600 \${Math.round(48 * typeScale)}px "Space Grotesk", sans-serif\`;
         ctx.fillStyle = '#f0f7f2';
         const numPart = project.sampleNumber ? \`#\${project.sampleNumber} · \` : '';
-        ctx.fillText(\`\${numPart}\${(project.title || 'untitled').toLowerCase()}\`, cx, cy + baseRadius + 75);
+        const titleText = \`\${numPart}\${(project.title || 'untitled').toLowerCase()}\`;
+        ctx.fillText(titleText, cx, cy + baseRadius + 75);
 
-        ctx.font = \`400 \${Math.round(16 * typeScale)}px "IBM Plex Mono", monospace\`;
-        ctx.fillStyle = '#9daea8';
+        ctx.font = \`500 \${Math.round(20 * typeScale)}px "Geist Mono", monospace\`;
+        ctx.fillStyle = '#a5ccaf';
         const metaList = [
           project.bpm ? \`\${project.bpm} bpm\` : null,
           project.key ? project.key.toLowerCase() : null,
           project.brand ? project.brand.toLowerCase() : null
         ].filter(Boolean);
         if (metaList.length > 0) {
-          ctx.fillText(metaList.join(' · '), cx, cy + baseRadius + 105);
+          ctx.fillText(metaList.join(' · '), cx, cy + baseRadius + 115);
         }
 
         // drop flash

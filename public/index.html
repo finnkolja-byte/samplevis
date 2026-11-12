@@ -19,6 +19,9 @@
   <header class="topbar">
     <div class="topbar-left">
       <span class="brand-mark">samplevis</span>
+      <a href="/gallery.html" target="_blank" class="gallery-nav-btn" title="browse preset gallery &amp; templates in a new tab">
+        presets gallery ↗
+      </a>
       <button class="design-switcher-btn" id="openDesignModalBtn" type="button" title="switch visual design template">
         <span class="design-label-prefix">design:</span>
         <span class="design-label-active" id="topActiveDesignLabel">constellations</span>
@@ -95,7 +98,7 @@
         </div>
       </div>
 
-      <div class="panel-section panel-grow">
+      <div class="panel-section panel-grow" id="midiTracksSection">
         <div class="section-header">
           <span class="section-idx">03</span>
           <h2 class="section-title">midi constellation tracks</h2>
@@ -322,8 +325,9 @@
   </div>
 
   <script src="/vendor/mp4-muxer.js"></script>
-  <script src="/js/services/aiProvider.js"></script>
+  <script src="/js/services/storageAdapter.js"></script>
   <script src="/js/services/presetService.js"></script>
+  <script src="/js/services/aiProvider.js"></script>
   <script src="/js/engine/reelEngine.js"></script>
   <script src="/js/engine/controlsManager.js"></script>
   <script src="/js/presets/starterPresets.js"></script>
