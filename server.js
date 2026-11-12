@@ -17,7 +17,6 @@ const {
   pickClipsForSample,
   CLIPS_DIR
 } = require('./src/media/animeFetcher');
-const { getPostizStatus, schedulePost } = require('./src/social/postizClient');
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3450', 10);
@@ -131,21 +130,6 @@ const clipUploadMiddleware = multer({
     const ext = path.extname(file.originalname).toLowerCase();
     if (['.mp4', '.webm'].includes(ext)) cb(null, true);
     else cb(new Error('Only .mp4 and .webm video clips are allowed'));
-  }
-});
-
-const exportUploadMiddleware = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, EXPORTS_DIR),
-    filename: (_req, file, cb) => {
-      cb(null, `${Date.now()}_${safeBasename(file.originalname || 'samplevis_render.mp4')}`);
-    }
-  }),
-  limits: { fileSize: 200 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (['.mp4', '.webm'].includes(ext)) cb(null, true);
-    else cb(new Error('Only rendered .mp4/.webm files are allowed'));
   }
 });
 
@@ -430,34 +414,6 @@ app.post('/api/clips/:id/favorite', (req, res) => {
     clip.favorite = typeof favorite === 'boolean' ? favorite : !clip.favorite;
     saveCatalog(catalog);
     res.json({ id: clip.id, favorite: clip.favorite, clip });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// postiz social scheduling
-app.get('/api/social/status', async (_req, res) => {
-  const status = await getPostizStatus();
-  res.json(status);
-});
-
-app.post('/api/social/schedule', exportUploadMiddleware.single('video'), async (req, res) => {
-  try {
-    const platforms = req.body.platforms ? JSON.parse(req.body.platforms) : ['instagram', 'youtube', 'tiktok'];
-    const integrationIds = req.body.integrationIds ? JSON.parse(req.body.integrationIds) : [];
-    const sampleMeta = req.body.sampleMeta ? JSON.parse(req.body.sampleMeta) : {};
-
-    const record = await schedulePost({
-      mp4Path: req.file?.path || null,
-      filename: req.file?.filename || 'client_export.mp4',
-      caption: String(req.body.caption || '').slice(0, 2200),
-      platforms,
-      scheduledAt: req.body.scheduledAt || null,
-      integrationIds,
-      sampleMeta
-    });
-
-    res.json({ ok: true, record });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

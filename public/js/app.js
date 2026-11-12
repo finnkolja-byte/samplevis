@@ -3,7 +3,6 @@
   const waveformCanvas = document.getElementById('waveformCanvas');
   let visualizer = null;
 
-  // Audio playback element
   const audioEl = new Audio();
   audioEl.preload = 'auto';
   audioEl.loop = true;
@@ -15,7 +14,7 @@
     }
   });
 
-  // Hidden pool of video elements for smooth single-loop & multi-clip chord/beat cuts
+  // pool of video elements for multi-clip cuts without decode stalls
   const videoPool = [0, 1, 2, 3, 4, 5, 6, 7].map(() => {
     const v = document.createElement('video');
     v.muted = true;
@@ -40,7 +39,6 @@
     videoPool
   };
 
-  // DOM Elements
   const els = {
     aspectRatioToggleBtn: document.getElementById('aspectRatioToggleBtn'),
     aspectRatioTelemetry: document.getElementById('aspectRatioTelemetry'),
@@ -69,20 +67,7 @@
     dropMarkerLine: document.getElementById('dropMarkerLine'),
     dropMarkerTag: document.getElementById('dropMarkerTag'),
     timelinePlayhead: document.getElementById('timelinePlayhead'),
-    sliderTimeOfDay: document.getElementById('sliderTimeOfDay'),
-    valTimeOfDay: document.getElementById('valTimeOfDay'),
-    sunsetDropToggle: document.getElementById('sunsetDropToggle'),
-    sliderDrift: document.getElementById('sliderDrift'),
-    valDrift: document.getElementById('valDrift'),
-    sliderLinkDist: document.getElementById('sliderLinkDist'),
-    valLinkDist: document.getElementById('valLinkDist'),
-    sliderBloom: document.getElementById('sliderBloom'),
-    valBloom: document.getElementById('valBloom'),
-    sliderAnimeOpacity: document.getElementById('sliderAnimeOpacity'),
-    valAnimeOpacity: document.getElementById('valAnimeOpacity'),
-    sliderMotion: document.getElementById('sliderMotion'),
-    valMotion: document.getElementById('valMotion'),
-    headerPreviewPill: document.getElementById('headerPreviewPill'),
+    headerPreviewTag: document.getElementById('headerPreviewTag'),
     autoPickChordClipsBtn: document.getElementById('autoPickChordClipsBtn'),
     shuffleClipBtn: document.getElementById('shuffleClipBtn'),
     unselectAllClipsBtn: document.getElementById('unselectAllClipsBtn'),
@@ -91,9 +76,8 @@
     dropGlitchToggle: document.getElementById('dropGlitchToggle'),
     autoFrameToggle: document.getElementById('autoFrameToggle'),
     fetchCategorySelect: document.getElementById('fetchCategorySelect'),
-    fetchBestClipsBtn: document.getElementById('fetchBestClipsBtn') || document.getElementById('fetchMoreClipsBtn'),
+    fetchBestClipsBtn: document.getElementById('fetchBestClipsBtn'),
     fetchRandomClipsBtn: document.getElementById('fetchRandomClipsBtn'),
-    fetchMoreClipsBtn: document.getElementById('fetchBestClipsBtn') || document.getElementById('fetchMoreClipsBtn'),
     customClipInput: document.getElementById('customClipInput'),
     clipGridContainer: document.getElementById('clipGridContainer'),
     renderMp4Btn: document.getElementById('renderMp4Btn'),
@@ -110,15 +94,6 @@
     byokModelInput: document.getElementById('byokModelInput'),
     saveAiSettingsBtn: document.getElementById('saveAiSettingsBtn'),
     aiSettingsSaveStatus: document.getElementById('aiSettingsSaveStatus'),
-    openScheduleModalBtn: document.getElementById('openScheduleModalBtn'),
-    openQueueBtn: document.getElementById('openQueueBtn'),
-    scheduleModal: document.getElementById('scheduleModal'),
-    closeScheduleModalBtn: document.getElementById('closeScheduleModalBtn'),
-    postizStatusBanner: document.getElementById('postizStatusBanner'),
-    scheduleDateTime: document.getElementById('scheduleDateTime'),
-    scheduleCaption: document.getElementById('scheduleCaption'),
-    confirmScheduleBtn: document.getElementById('confirmScheduleBtn'),
-    scheduledQueueList: document.getElementById('scheduledQueueList'),
     topActiveDesignLabel: document.getElementById('topActiveDesignLabel'),
     openDesignModalBtn: document.getElementById('openDesignModalBtn'),
     designModal: document.getElementById('designModal'),
@@ -127,7 +102,7 @@
     templateControlsContainer: document.getElementById('templateControlsContainer')
   };
 
-  // Initialize active visualizer from registry
+  // initialize active template from registry
   const activeTemplateId = localStorage.getItem('samplevis_active_template_id') || 'constellations';
   window.templateRegistry.setTemplate(
     activeTemplateId,
@@ -162,9 +137,9 @@
       visualizer.project.key = state.project.key;
     }
 
-    if (els.headerPreviewPill) {
+    if (els.headerPreviewTag) {
       const num = state.project.sampleNumber ? `#${String(state.project.sampleNumber).replace(/^#?\s*0*/, '') || '1'} - ` : '';
-      els.headerPreviewPill.textContent = `[${num}${state.project.title || 'untitled'} · ${state.project.brand || 'aesttc'}]`;
+      els.headerPreviewTag.textContent = `[${num}${state.project.title || 'untitled'} · ${state.project.brand || 'aesttc'}]`;
     }
   }
 
@@ -250,7 +225,6 @@
 
     const dur = activeVid.duration || 6.0;
 
-    // Use analytical speed-ramping trajectory if enabled
     if (visualizer.params.speedRamping) {
       const ramp = visualizer.getSpeedRampInfo(t);
       return ramp.clipTime % Math.max(0.5, dur);
@@ -371,7 +345,7 @@
       });
     }
 
-    // Always sort best-first: favorites at very top, then highest community score descending with character bonus
+    // sort favorites first, then community score with character bonus
     return filtered.sort((a, b) => {
       if (a.favorite && !b.favorite) return -1;
       if (!a.favorite && b.favorite) return 1;
@@ -397,7 +371,7 @@
       empty.textContent =
         cat === 'favorites'
           ? 'no saved favorites yet · click ★ on any clip card to save it'
-          : 'no clips in this category yet · click "fetch +4" to download';
+          : 'no clips in this category yet · click "fetch best" to download';
       els.clipGridContainer.appendChild(empty);
       return;
     }
@@ -407,7 +381,6 @@
       const selIndex = state.selectedClipIds.indexOf(clip.id);
       const card = document.createElement('div');
       card.className = `clip-card${isSelected ? ' selected' : ''}`;
-      const tagText = clip.hasCharacter ? 'char' : (clip.vibe || 'sky').toLowerCase();
       const orderBadge = isSelected && visualizer.params.cutMode !== 'single'
         ? `<span class="clip-badge-order">${selIndex + 1}</span>`
         : '';
@@ -423,15 +396,15 @@
         <video src="${clip.url}" muted loop playsinline preload="metadata"></video>
         <div class="clip-card-info">
           <span class="clip-title" title="${clip.title}">${clip.title.toLowerCase()}</span>
-          <div class="clip-frame-pills" title="crop: left / center / right">
-            <button type="button" class="frame-pill${clip.manualFocalX === 0.25 ? ' active' : ''}" data-focal="0.25" title="frame left">L</button>
-            <button type="button" class="frame-pill${(!clip.manualFocalX || clip.manualFocalX === 0.5) ? ' active' : ''}" data-focal="0.5" title="frame center">C</button>
-            <button type="button" class="frame-pill${clip.manualFocalX === 0.75 ? ' active' : ''}" data-focal="0.75" title="frame right">R</button>
+          <div class="clip-frame-btns" title="crop: left / center / right">
+            <button type="button" class="frame-btn${clip.manualFocalX === 0.25 ? ' active' : ''}" data-focal="0.25" title="frame left">L</button>
+            <button type="button" class="frame-btn${(!clip.manualFocalX || clip.manualFocalX === 0.5) ? ' active' : ''}" data-focal="0.5" title="frame center">C</button>
+            <button type="button" class="frame-btn${clip.manualFocalX === 0.75 ? ' active' : ''}" data-focal="0.75" title="frame right">R</button>
           </div>
         </div>
       `;
 
-      card.querySelectorAll('.frame-pill').forEach((btn) => {
+      card.querySelectorAll('.frame-btn').forEach((btn) => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           const focal = parseFloat(btn.dataset.focal);
@@ -519,7 +492,7 @@
       ctx.fillRect(x, y, Math.max(1.5, barW - 1), h);
     });
 
-    // Chord cut markers on the waveform
+    // cut markers on the waveform
     const cutMode = visualizer.params.cutMode;
     const cuts = cutMode === 'chord'
       ? state.project?.chordCutTimes
@@ -588,9 +561,9 @@
     const subStr = subParts.length ? ` (${subParts.join(' · ')})` : '';
     els.uploadStatusText.textContent = `active: ${metaParts.join(' - ')}${subStr}`;
 
-    if (els.headerPreviewPill) {
+    if (els.headerPreviewTag) {
       const num = project.sampleNumber ? `#${String(project.sampleNumber).replace(/^#?\s*0*/, '') || '1'} - ` : '';
-      els.headerPreviewPill.textContent = `[${num}${project.title || 'untitled'} · ${project.brand || 'aesttc'}]`;
+      els.headerPreviewTag.textContent = `[${num}${project.title || 'untitled'} · ${project.brand || 'aesttc'}]`;
     }
 
     visualizer.setProject(project);
@@ -626,7 +599,7 @@
     updateTransportReadouts(0);
   }
 
-  // Main 60fps animation loop
+  // 60fps preview loop
   function tick() {
     if (!state.isRendering) {
       if (state.isPlaying && !audioEl.paused) {
@@ -666,19 +639,18 @@
     requestAnimationFrame(tick);
   }
 
-  // Event Listeners
   els.playPauseBtn.addEventListener('click', () => {
     if (state.isPlaying) {
       audioEl.pause();
       state.isPlaying = false;
-      els.playPauseBtn.textContent = 'PLAY';
+      els.playPauseBtn.textContent = 'play';
     } else {
       audioEl.play().catch(() => {});
       videoPool.forEach((v) => {
         if (v.src) v.play().catch(() => {});
       });
       state.isPlaying = true;
-      els.playPauseBtn.textContent = 'PAUSE';
+      els.playPauseBtn.textContent = 'pause';
     }
   });
 
@@ -692,7 +664,7 @@
     }
   });
 
-  // Waveform seek & Drop Marker drag
+  // waveform seek & drop marker drag
   els.dropMarkerLine.addEventListener('mousedown', (e) => {
     e.stopPropagation();
     state.draggingDropMarker = true;
@@ -703,7 +675,7 @@
     const rect = els.waveformContainer.getBoundingClientRect();
     const ratio = Math.max(0.05, Math.min(0.92, (e.clientX - rect.left) / rect.width));
     const rawTime = ratio * state.project.duration;
-    // Snap softly to half-bar boundaries if Shift isn't held
+    // snap to half-bar boundaries unless shift is held
     const secPerBar = (60 / (state.project.bpm || 120)) * 4;
     const snapped = e.shiftKey ? rawTime : Math.round(rawTime / (secPerBar * 0.5)) * (secPerBar * 0.5);
     state.project.dropTime = Number(snapped.toFixed(3));
@@ -726,7 +698,6 @@
     updateTransportReadouts(seekT);
   });
 
-  // Metadata fields live update
   [els.inputBrand, els.inputNumber, els.inputTitle, els.inputBpm, els.inputKey].forEach((inp) => {
     inp.addEventListener('input', () => {
       updateMetadataToVisualizer();
@@ -747,7 +718,6 @@
     });
   }
 
-  // Cut Mode Segmented Buttons
   const CUT_MODE_HINTS = {
     chord: 'dynamic chord cuts · switches clips on every harmony change',
     single: 'single serene loop · one atmospheric scene for the entire drop',
@@ -776,7 +746,6 @@
     });
   });
 
-  // Speed ramp toggle
   if (els.speedRampToggle) {
     els.speedRampToggle.checked = Boolean(visualizer.params.speedRamping);
     els.speedRampToggle.addEventListener('change', (e) => {
@@ -784,7 +753,6 @@
     });
   }
 
-  // Glitch transitions (drop glitch-in & loop glitch-out) toggle
   if (els.dropGlitchToggle) {
     els.dropGlitchToggle.checked = Boolean(visualizer.params.dropGlitch !== false);
     els.dropGlitchToggle.addEventListener('change', (e) => {
@@ -792,7 +760,6 @@
     });
   }
 
-  // Auto-frame subject (character tracking) toggle
   if (els.autoFrameToggle) {
     els.autoFrameToggle.checked = Boolean(visualizer.params.autoFrame !== false);
     els.autoFrameToggle.addEventListener('change', (e) => {
@@ -800,11 +767,10 @@
     });
   }
 
-  // Auto-pick 4 clips for chord cuts: selects top best clips from active category
   if (els.autoPickChordClipsBtn) {
     els.autoPickChordClipsBtn.addEventListener('click', () => {
       if (state.clips.length === 0) return;
-      const filtered = getFilteredClips(); // already sorted best-first
+      const filtered = getFilteredClips();
       const pool = filtered.length > 0 ? filtered : state.clips;
       state.selectedClipIds = pool.slice(0, Math.min(4, pool.length)).map((c) => c.id);
       syncVideoPoolSources();
@@ -812,7 +778,6 @@
     });
   }
 
-  // Shuffle Clip (prioritizes favorites if viewing favorites or if favorites exist)
   els.shuffleClipBtn.addEventListener('click', () => {
     if (state.clips.length === 0) return;
     const filtered = getFilteredClips();
@@ -825,7 +790,6 @@
     renderClipGrid();
   });
 
-  // Unselect All Clips
   if (els.unselectAllClipsBtn) {
     els.unselectAllClipsBtn.addEventListener('click', () => {
       state.selectedClipIds = [];
@@ -834,7 +798,6 @@
     });
   }
 
-  // Filter clips when category select changes & auto-select top best clips in that category
   if (els.fetchCategorySelect) {
     els.fetchCategorySelect.addEventListener('change', () => {
       const pool = getFilteredClips();
@@ -849,10 +812,9 @@
     });
   }
 
-  // Fetch Melancholic Anime Clips: supports 'best' (top masterpiece clips) and 'random' (fresh random clips in category)
   async function handleFetchClips(mode = 'best') {
     const category = els.fetchCategorySelect ? els.fetchCategorySelect.value : 'all';
-    const activeBtn = mode === 'random' ? els.fetchRandomClipsBtn : (els.fetchBestClipsBtn || els.fetchMoreClipsBtn);
+    const activeBtn = mode === 'random' ? els.fetchRandomClipsBtn : els.fetchBestClipsBtn;
     const defaultLabel = mode === 'random' ? 'fetch random' : 'fetch best';
 
     if (activeBtn) {
@@ -877,7 +839,6 @@
               ? [data.added[0].id]
               : data.added.slice(0, 4).map((c) => c.id);
         } else {
-          // If no new clips needed downloading, select from the existing library
           const filtered = getFilteredClips();
           const pool = filtered.length >= 4 ? filtered : state.clips;
           if (mode === 'random') {
@@ -908,15 +869,12 @@
 
   if (els.fetchBestClipsBtn) {
     els.fetchBestClipsBtn.addEventListener('click', () => handleFetchClips('best'));
-  } else if (els.fetchMoreClipsBtn) {
-    els.fetchMoreClipsBtn.addEventListener('click', () => handleFetchClips('best'));
   }
 
   if (els.fetchRandomClipsBtn) {
     els.fetchRandomClipsBtn.addEventListener('click', () => handleFetchClips('random'));
   }
 
-  // Upload custom anime clip
   els.customClipInput.addEventListener('change', async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -938,7 +896,7 @@
     }
   });
 
-  // Drag & Drop Sample (.wav + .mid/.als)
+  // sample file dropzone (.wav + .mid/.als)
   els.sampleDropzone.addEventListener('click', () => els.sampleFileInput.click());
   els.sampleDropzone.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -969,7 +927,6 @@
       return;
     }
 
-    // Instantly create local object URL so audio plays from browser RAM with 0ms lag
     if (state.localAudioUrl) {
       try { URL.revokeObjectURL(state.localAudioUrl); } catch (e) {}
     }
@@ -981,7 +938,7 @@
     audioEl.currentTime = 0;
     state.currentTime = 0;
 
-    els.uploadStatusText.textContent = `ANALYZING ${audioFile.name} (100% IN-BROWSER)...`;
+    els.uploadStatusText.textContent = `analyzing ${audioFile.name}...`;
 
     try {
       const meta = window.clientAnalyzer.parseSampleFilename(audioFile.name);
@@ -1030,7 +987,6 @@
         audioAnalysis.duration
       );
 
-      // Auto-pick up to 4 clips from current library
       const matchedClips = state.clips && state.clips.length ? state.clips.slice(0, 4) : [];
 
       const project = {
@@ -1054,16 +1010,13 @@
       loadProjectIntoStudio(project, null, matchedClips);
     } catch (err) {
       console.error('Client analysis error:', err);
-      els.uploadStatusText.textContent = `ERROR: ${err.message}`;
+      els.uploadStatusText.textContent = `error: ${err.message}`;
     }
   }
 
   els.reloadStarterBtn.addEventListener('click', () => initStarter());
 
-  // =========================================================================
-  // CLIENT-SIDE HARDWARE GPU RENDERER (WebCodecs VideoEncoder + AudioEncoder + mp4-muxer)
-  // Zero rendering load on the Homeserver!
-  // =========================================================================
+  // client-side video export (webcodecs + mp4-muxer with mediarecorder fallback)
   function seekVideoElement(videoEl, timeSec) {
     return new Promise((resolve) => {
       if (!videoEl || !videoEl.src || !videoEl.duration) return resolve();
@@ -1086,7 +1039,6 @@
     if (state.isRendering || !state.project) return;
     if (state.isPlaying) els.playPauseBtn.click();
 
-    // Verify audio track exists and pre-decode to guarantee audio in the render
     if (!state.project.audioUrl) {
       alert('Cannot render: No audio track loaded. Please drop a .wav or .mp3 sample file first.');
       return;
@@ -1134,7 +1086,7 @@
     const duration = state.project.duration || 29.09;
     const totalFrames = Math.ceil(duration * fps);
 
-    els.renderStatusTitle.textContent = 'INITIALIZING GPU ENCODER & MUXER...';
+    els.renderStatusTitle.textContent = 'initializing encoder & muxer...';
     els.renderProgressBar.style.width = '0%';
 
     let audioBuffer = preloadedAudioBuffer;
@@ -1153,7 +1105,7 @@
     const sampleRate = audioBuffer ? audioBuffer.sampleRate : 44100;
     const numberOfChannels = audioBuffer ? Math.min(2, audioBuffer.numberOfChannels) : 2;
 
-    // Check if AudioEncoder with AAC is supported in this browser (test 192k -> 160k -> 128k)
+    // probe aac support across standard bitrates
     let useAudioEncoder = false;
     let targetAudioBitrate = 192_000;
     if (audioBuffer && typeof window.AudioEncoder === 'function') {
@@ -1171,7 +1123,7 @@
             break;
           }
         } catch {
-          // continue checking
+          // continue probing
         }
       }
     }
@@ -1204,14 +1156,13 @@
     });
 
     videoEncoder.configure({
-      codec: 'avc1.64002a', // H.264 High Profile Level 4.2 (supports 1080x1920 and 1920x1080 @ 60fps)
+      codec: 'avc1.64002a', // h.264 high profile level 4.2 (1080p60)
       width: renderWidth,
       height: renderHeight,
       bitrate: 12_000_000,
       framerate: fps
     });
 
-    // Encode Audio track if supported
     if (useAudioEncoder) {
       const audioEncoder = new AudioEncoder({
         output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
@@ -1250,8 +1201,7 @@
       await audioEncoder.flush();
     }
 
-    // 2. Step through every 60fps frame deterministically
-    els.renderStatusTitle.textContent = 'CLIENT GPU ENCODING 1080×1920 @ 60FPS...';
+    els.renderStatusTitle.textContent = `encoding ${renderWidth}×${renderHeight} @ 60fps...`;
     for (let f = 0; f < totalFrames; f++) {
       const t = f / fps;
       const activeVid = getActiveVideoForTime(t);
@@ -1269,28 +1219,26 @@
       videoEncoder.encode(frame, { keyFrame: f % 120 === 0 });
       frame.close();
 
-      // Keep encoder queue healthy & update progress UI
       if (videoEncoder.encodeQueueSize > 12) {
         await videoEncoder.flush();
       }
       if (f % 8 === 0 || f === totalFrames - 1) {
         const pct = Math.round(((f + 1) / totalFrames) * 100);
         els.renderProgressBar.style.width = `${pct}%`;
-        els.renderProgressMeta.textContent = `Frame ${f + 1} / ${totalFrames} (${pct}%)`;
+        els.renderProgressMeta.textContent = `frame ${f + 1} / ${totalFrames} (${pct}%)`;
         await new Promise((r) => setTimeout(r, 0));
       }
     }
 
     await videoEncoder.flush();
     muxer.finalize();
-    await audioCtx.close();
 
     const buffer = muxer.target.buffer;
     let blob = new Blob([buffer], { type: 'video/mp4' });
 
-    // Fallback: if browser could not encode AAC via AudioEncoder, remux original audio via server ffmpeg
+    // if the browser lacks aac audioencoder support, remux audio via server ffmpeg
     if (!useAudioEncoder && state.project?.audioUrl) {
-      els.renderStatusTitle.textContent = 'FINALIZING AUDIO TRACK MUXING...';
+      els.renderStatusTitle.textContent = 'muxing audio track...';
       try {
         const fd = new FormData();
         fd.append('video', blob, 'video.mp4');
@@ -1308,21 +1256,22 @@
   }
 
   async function renderWithMediaRecorderFallback() {
-    els.renderStatusTitle.textContent = 'RECORDING REAL-TIME 60FPS STREAM...';
+    els.renderStatusTitle.textContent = 'recording 60fps stream...';
     const stream = previewCanvas.captureStream(60);
 
-    // Capture audio stream from audio element so recording contains audio
     try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const dest = audioCtx.createMediaStreamDestination();
-      const source = audioCtx.createMediaElementSource(audioEl);
-      source.connect(dest);
-      source.connect(audioCtx.destination);
-      for (const track of dest.stream.getAudioTracks()) {
-        stream.addTrack(track);
+      const audioStream = audioEl.captureStream
+        ? audioEl.captureStream()
+        : audioEl.mozCaptureStream
+        ? audioEl.mozCaptureStream()
+        : null;
+      if (audioStream) {
+        for (const track of audioStream.getAudioTracks()) {
+          stream.addTrack(track);
+        }
       }
     } catch {
-      // audio stream fallback
+      // continue with video-only stream if audio capture is blocked
     }
 
     const chunks = [];
@@ -1376,94 +1325,7 @@
     els.downloadLastRenderBtn.click();
   }
 
-  // =========================================================================
-  // POSTIZ MULTI-PLATFORM SCHEDULER MODAL
-  // =========================================================================
-  function openScheduleModal() {
-    if (!state.project) return;
-    els.scheduleModal.hidden = false;
-
-    const defaultDate = new Date(Date.now() + 3600_000 * 4);
-    defaultDate.setMinutes(0, 0, 0);
-    els.scheduleDateTime.value = defaultDate.toISOString().slice(0, 16);
-
-    const p = state.project;
-    const title = (p.title || 'sample').toLowerCase();
-    const brand = (p.brand || 'aesttc').toLowerCase();
-    const metaParts = [];
-    if (p.bpm) metaParts.push(`${p.bpm} bpm`);
-    if (p.key) metaParts.push(p.key.toLowerCase());
-    const metaStr = metaParts.length ? ` · ${metaParts.join(' · ')}` : '';
-    els.scheduleCaption.value = `[${brand} - ${title}]${metaStr}\n\n#${brand} #samplepack #melancholic #loops #musicproducer #animeaesthetic #guitarloops #pianoloops`;
-
-    refreshPostizStatus();
-  }
-
-  async function refreshPostizStatus() {
-    try {
-      const res = await fetch('/api/social/status');
-      const data = await res.json();
-      if (data.connected) {
-        els.postizStatusBanner.textContent = `postiz connected (${data.integrations.length} channels active at ${data.baseUrl})`;
-        els.postizStatusBanner.style.color = '#8ce296';
-      } else if (data.configured) {
-        els.postizStatusBanner.textContent = `postiz configured (${data.baseUrl}) · ${data.error || 'waiting for container'} · local queue active`;
-      } else {
-        els.postizStatusBanner.textContent = `local release queue active · set POSTIZ_API_KEY in .env to auto-push to postiz (${data.baseUrl})`;
-      }
-
-      els.scheduledQueueList.innerHTML = '';
-      (data.queue || []).slice(0, 6).forEach((item) => {
-        const div = document.createElement('div');
-        div.className = 'queue-item';
-        div.innerHTML = `
-          <span>${item.filename} → [${(item.platforms || []).join(', ')}]</span>
-          <span>${item.status.toLowerCase()}</span>
-        `;
-        els.scheduledQueueList.appendChild(div);
-      });
-    } catch {
-      els.postizStatusBanner.textContent = 'unable to query postiz status';
-    }
-  }
-
-  els.openScheduleModalBtn.addEventListener('click', openScheduleModal);
-  els.openQueueBtn.addEventListener('click', openScheduleModal);
-  els.closeScheduleModalBtn.addEventListener('click', () => {
-    els.scheduleModal.hidden = true;
-  });
-
-  els.confirmScheduleBtn.addEventListener('click', async () => {
-    els.confirmScheduleBtn.disabled = true;
-    els.confirmScheduleBtn.textContent = 'scheduling...';
-    try {
-      const platforms = Array.from(document.querySelectorAll('.platform-cb:checked')).map((cb) => cb.value);
-      const fd = new FormData();
-      if (state.lastRenderedBlob) {
-        fd.append('video', state.lastRenderedBlob, state.lastRenderedFilename);
-      }
-      fd.append('caption', els.scheduleCaption.value);
-      fd.append('platforms', JSON.stringify(platforms));
-      fd.append('scheduledAt', new Date(els.scheduleDateTime.value).toISOString());
-      fd.append('sampleMeta', JSON.stringify({
-        title: state.project?.title,
-        bpm: state.project?.bpm,
-        key: state.project?.key
-      }));
-
-      const res = await fetch('/api/social/schedule', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      await refreshPostizStatus();
-    } catch (err) {
-      alert(`schedule error: ${err.message}`);
-    } finally {
-      els.confirmScheduleBtn.disabled = false;
-      els.confirmScheduleBtn.textContent = 'send render to postiz queue';
-    }
-  });
-
-  // Design Switcher Gallery Modal & Registry Wiring
+  // design switcher modal & registry wiring
   function initDesignSwitcher() {
     function renderGalleryCards() {
       if (!els.designTemplateGrid) return;
@@ -1500,7 +1362,6 @@
           renderGalleryCards();
           closeDesignModal();
 
-          // Redraw frame immediately
           const activeVid = getActiveVideoForTime(state.currentTime);
           if (visualizer && typeof visualizer.renderFrame === 'function') {
             visualizer.renderFrame(state.currentTime, activeVid);
@@ -1624,13 +1485,12 @@
 
         els.aspectRatioToggleBtn.textContent =
           nextAspect === '16:9'
-            ? 'switch to vertical / 9:16 (ai)'
-            : 'switch to widescreen / horizontal (ai)';
+            ? 'switch to 9:16 vertical'
+            : 'switch to 16:9 widescreen';
       });
     }
   }
 
-  // Initialize Studio
   async function initStarter() {
     try {
       const sessionRes = await fetch('/api/session');
@@ -1645,7 +1505,7 @@
       const res = await fetch('/api/starter');
       const data = await res.json();
       if (data.project) {
-        // Pre-fetch starter audio into a local Blob URL so it behaves 100% like a dropped local file
+        // cache starter audio in a local blob url for zero-latency seeking
         if (data.project.audioUrl) {
           try {
             const wavRes = await fetch(data.project.audioUrl);

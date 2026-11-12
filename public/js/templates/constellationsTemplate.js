@@ -68,18 +68,6 @@
       }
     }
 
-    setActiveVideos(videos) {
-      if (this.visualizer && typeof this.visualizer.setActiveVideos === 'function') {
-        this.visualizer.setActiveVideos(videos);
-      }
-    }
-
-    setAspectRatio(ratio) {
-      if (this.visualizer && typeof this.visualizer.setAspectRatio === 'function') {
-        this.visualizer.setAspectRatio(ratio);
-      }
-    }
-
     cleanup() {}
 
     renderControls(container, onChange) {

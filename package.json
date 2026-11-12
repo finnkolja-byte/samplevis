@@ -1,7 +1,7 @@
 {
   "name": "samplevis",
   "version": "1.0.0",
-  "description": "Night-sky constellation MIDI visualizer & melancholic anime short-form studio with client-side WebCodecs rendering and Postiz integration",
+  "description": "Short-form music sample visualizer studio with client-side WebCodecs GPU rendering",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

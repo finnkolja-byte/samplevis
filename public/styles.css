@@ -11,6 +11,7 @@
   --text-muted: #466581;
   --accent-amber: #83ca90;
   --accent-green: #83ca90;
+  --accent: #83ca90;
   --accent-spruce: #5e8a7d;
   --accent-mist: #a5ccaf;
   --accent-amber-glow: rgba(131, 202, 144, 0.30);
@@ -19,7 +20,10 @@
   --glass-blur: blur(24px);
   --radius-glass: 10px;
   --radius-tag: 6px;
+  --radius-sm: 6px;
+  --transition-fast: 0.15s ease;
   --font-sans: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
 }
 
@@ -43,7 +47,7 @@ body {
   text-transform: lowercase;
 }
 
-/* Ambient Liquid Glass Backdrop Lighting */
+/* ambient backdrop lighting */
 .ambient-orb {
   position: fixed;
   border-radius: 50%;
@@ -78,7 +82,7 @@ body {
   left: 45%;
 }
 
-/* Top Glass Bar */
+/* top bar */
 .topbar {
   position: relative;
   z-index: 10;
@@ -146,14 +150,14 @@ body {
   color: #f0f7f2;
 }
 
-.telemetry-Readout {
+.telemetry-readout {
   display: flex;
   align-items: center;
   gap: 8px;
   color: var(--text-secondary);
 }
 
-.telemetry-Readout .sep {
+.telemetry-readout .sep {
   color: var(--text-muted);
 }
 
@@ -166,7 +170,7 @@ body {
   border-radius: var(--radius-tag);
 }
 
-/* 4-Column Studio Grid with Liquid Glass Architecture */
+/* 4-column studio grid */
 .studio-grid {
   position: relative;
   z-index: 1;
@@ -263,7 +267,7 @@ body {
   border-radius: var(--radius-tag);
 }
 
-/* Glass Dropzone */
+/* sample dropzone */
 .dropzone {
   border: 1px dashed rgba(255, 255, 255, 0.16);
   background: var(--bg-input);
@@ -309,7 +313,7 @@ body {
   text-overflow: ellipsis;
 }
 
-/* Form Inputs */
+/* form inputs */
 .form-grid-2 {
   display: flex;
   flex-direction: column;
@@ -378,7 +382,7 @@ textarea:focus {
   margin-bottom: 8px;
 }
 
-/* Track List */
+/* track list */
 .track-list {
   display: flex;
   flex-direction: column;
@@ -444,7 +448,7 @@ input[type='checkbox'] {
   border-radius: 4px;
 }
 
-/* Center Stage (9:16 Preview) */
+/* center stage (preview canvas) */
 .stage-wrapper {
   flex: 1;
   display: flex;
@@ -534,7 +538,7 @@ input[type='checkbox'] {
   color: var(--text-secondary);
 }
 
-/* Timeline Dock (Floating Liquid Glass Bar) */
+/* timeline dock */
 .timeline-dock {
   background: rgba(10, 18, 20, 0.85);
   backdrop-filter: var(--glass-blur);
@@ -637,7 +641,7 @@ input[type='checkbox'] {
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.7);
 }
 
-/* Sliders */
+/* sliders */
 .slider-group {
   display: flex;
   flex-direction: column;
@@ -683,7 +687,7 @@ input[type='range']::-webkit-slider-thumb:hover {
   background: var(--accent-amber);
 }
 
-/* Segmented Control (Liquid Glass Style) */
+/* segmented control */
 .header-actions {
   display: flex;
   gap: 5px;
@@ -775,7 +779,7 @@ input[type='range']::-webkit-slider-thumb:hover {
   font-size: 9px;
 }
 
-/* Fetcher Bar & Clip Grid */
+/* fetcher bar & clip grid */
 .fetcher-bar {
   display: flex;
   flex-direction: column;
@@ -953,7 +957,7 @@ input[type='range']::-webkit-slider-thumb:hover {
   flex-shrink: 0;
 }
 
-.clip-frame-pills {
+.clip-frame-btns {
   display: inline-flex;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 4px;
@@ -964,7 +968,7 @@ input[type='range']::-webkit-slider-thumb:hover {
   gap: 1px;
 }
 
-.frame-pill {
+.frame-btn {
   border: none;
   background: transparent;
   color: var(--text-muted);
@@ -983,19 +987,19 @@ input[type='range']::-webkit-slider-thumb:hover {
   padding: 0;
 }
 
-.frame-pill:hover {
+.frame-btn:hover {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.18);
 }
 
-.frame-pill.active {
+.frame-btn.active {
   background: var(--accent);
   color: #05120b;
   font-weight: 700;
   box-shadow: 0 0 6px rgba(104, 200, 140, 0.45);
 }
 
-/* Glass Buttons */
+/* buttons */
 .btn {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -1110,7 +1114,7 @@ input[type='range']::-webkit-slider-thumb:hover {
   }
 }
 
-/* Modal */
+/* modals */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1188,7 +1192,7 @@ input[type='range']::-webkit-slider-thumb:hover {
   justify-content: space-between;
 }
 
-/* Design Switcher Header Button */
+/* design switcher header button */
 .design-switcher-btn {
   display: inline-flex;
   align-items: center;
@@ -1224,7 +1228,7 @@ input[type='range']::-webkit-slider-thumb:hover {
   font-size: 10px;
 }
 
-/* Design Gallery Modal */
+/* design gallery modal */
 .design-modal-card {
   width: 680px;
   max-width: 95vw;
@@ -1287,11 +1291,10 @@ input[type='range']::-webkit-slider-thumb:hover {
   font-family: var(--font-mono);
   font-size: 9px;
   padding: 2px 7px;
-  border-radius: 10px;
+  border-radius: var(--radius-tag);
   background: rgba(104, 200, 140, 0.15);
   color: var(--accent);
   border: 1px solid rgba(104, 200, 140, 0.3);
-  text-transform: uppercase;
 }
 
 .template-card-desc {

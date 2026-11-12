@@ -56,39 +56,10 @@ class SampleVisualizer {
     this.minPitch = 48;
     this.maxPitch = 84;
 
-    this.activeVideos = [];
-    this.aspectRatio = '9:16';
-
     this.bgStars = this._createBgStars(160);
     this.stardust = this._createStardust(90);
     this.bgWarpLines = this._createBgWarpLines(36);
     this.preDropSparkles = this._createPreDropSparkles(150);
-  }
-
-  setActiveVideos(videos) {
-    this.activeVideos = Array.isArray(videos) ? videos : [];
-  }
-
-  setAspectRatio(ratio) {
-    this.aspectRatio = ratio;
-    const isWidescreen = ratio === '16:9';
-    this.width = isWidescreen ? 1920 : 1080;
-    this.height = isWidescreen ? 1080 : 1920;
-    if (this.canvas) {
-      this.canvas.width = this.width;
-      this.canvas.height = this.height;
-    }
-    this.pianoRollTop = Math.round(this.height * (isWidescreen ? 0.65 : 0.724));
-    this.pianoRollHeight = this.height - this.pianoRollTop;
-    this.skyTop = 0;
-    this.skyHeight = this.pianoRollTop;
-    this.skyCenterX = this.width * 0.5;
-    this.skyCenterY = this.skyHeight * 0.48;
-    this.bgStars = this._createBgStars(160);
-    this.stardust = this._createStardust(90);
-    this.bgWarpLines = this._createBgWarpLines(36);
-    this.preDropSparkles = this._createPreDropSparkles(150);
-    this.rebuildNoteNodes();
   }
 
   getDropTime() {
@@ -246,14 +217,9 @@ class SampleVisualizer {
       if (!this.selectedTrackIds.has(track.id)) continue;
       const trackNotes = track.notes || [];
       let maxNoteTime = 0;
-      for (const raw of trackNotes) {
-        const time = (raw.time !== undefined) ? raw.time : (raw.startTime !== undefined ? raw.startTime : 0);
-        const midi = (raw.midi !== undefined) ? raw.midi : (raw.pitch !== undefined ? raw.pitch : 60);
-        const duration = (raw.duration !== undefined) ? raw.duration : 0.5;
-        const velocity = (raw.velocity !== undefined) ? raw.velocity : 0.8;
-        const n = { ...raw, time, midi, duration, velocity, trackId: track.id };
+      for (const n of trackNotes) {
         if (n.time > maxNoteTime) maxNoteTime = n.time;
-        notes.push(n);
+        notes.push({ ...n, trackId: track.id });
       }
 
       // mirror intro-only midi tracks into the drop when loopIntroMidi is enabled
@@ -264,21 +230,13 @@ class SampleVisualizer {
         dropTime > 2 &&
         duration > dropTime + 2
       ) {
-        for (const raw of trackNotes) {
-          const origTime = (raw.time !== undefined) ? raw.time : (raw.startTime !== undefined ? raw.startTime : 0);
-          const mirroredTime = origTime + dropTime;
+        for (const n of trackNotes) {
+          const mirroredTime = n.time + dropTime;
           if (mirroredTime + 0.05 < duration) {
-            const midi = (raw.midi !== undefined) ? raw.midi : (raw.pitch !== undefined ? raw.pitch : 60);
-            const duration = (raw.duration !== undefined) ? raw.duration : 0.5;
-            const velocity = (raw.velocity !== undefined) ? raw.velocity : 0.8;
-            const origBeat = raw.beat !== undefined ? raw.beat : (origTime * (this.project.bpm || 120)) / 60;
             notes.push({
-              ...raw,
+              ...n,
               time: Number(mirroredTime.toFixed(4)),
-              midi,
-              duration,
-              velocity,
-              beat: Number((origBeat + (dropTime * (this.project.bpm || 120)) / 60).toFixed(4)),
+              beat: Number((n.beat + (dropTime * this.project.bpm) / 60).toFixed(4)),
               trackId: track.id,
               mirrored: true
             });
@@ -310,7 +268,6 @@ class SampleVisualizer {
     const startY = 50;
     const endY = this.pianoRollTop - 110;
     const usableH = endY - startY;
-    const W = this.width;
 
     // lowest 12 unique pitches spawn larger primary stars
     const uniquePitches = Array.from(new Set(notes.map((n) => n.midi))).sort((a, b) => a - b);
@@ -318,29 +275,29 @@ class SampleVisualizer {
 
     // flanking perimeter clusters framing left and right
     const introClusters = [
-      { x: W * 0.26, y: startY + usableH * 0.22, tier: 0 },
-      { x: W * 0.74, y: startY + usableH * 0.26, tier: 0 },
-      { x: W * 0.24, y: startY + usableH * 0.50, tier: 1 },
-      { x: W * 0.76, y: startY + usableH * 0.54, tier: 1 },
-      { x: W * 0.27, y: startY + usableH * 0.78, tier: 2 },
-      { x: W * 0.73, y: startY + usableH * 0.84, tier: 2 }
+      { x: 280, y: startY + usableH * 0.22, tier: 0 },
+      { x: 800, y: startY + usableH * 0.26, tier: 0 },
+      { x: 260, y: startY + usableH * 0.50, tier: 1 },
+      { x: 820, y: startY + usableH * 0.54, tier: 1 },
+      { x: 290, y: startY + usableH * 0.78, tier: 2 },
+      { x: 790, y: startY + usableH * 0.84, tier: 2 }
     ];
 
     const dropClusters = [
-      { x: W * 0.17, y: startY + usableH * 0.16, tier: 0 },
-      { x: W * 0.83, y: startY + usableH * 0.16, tier: 0 },
-      { x: W * 0.20, y: startY + usableH * 0.42, tier: 1 },
-      { x: W * 0.80, y: startY + usableH * 0.42, tier: 1 },
-      { x: W * 0.18, y: startY + usableH * 0.68, tier: 2 },
-      { x: W * 0.82, y: startY + usableH * 0.68, tier: 2 },
-      { x: W * 0.18, y: startY + usableH * 0.86, tier: 2 },
-      { x: W * 0.82, y: startY + usableH * 0.86, tier: 2 }
+      { x: 180, y: startY + usableH * 0.16, tier: 0 },
+      { x: 900, y: startY + usableH * 0.16, tier: 0 },
+      { x: 220, y: startY + usableH * 0.42, tier: 1 },
+      { x: 860, y: startY + usableH * 0.42, tier: 1 },
+      { x: 200, y: startY + usableH * 0.68, tier: 2 },
+      { x: 880, y: startY + usableH * 0.68, tier: 2 },
+      { x: 190, y: startY + usableH * 0.86, tier: 2 },
+      { x: 890, y: startY + usableH * 0.86, tier: 2 }
     ];
 
     const middleClusters = [
-      { x: W * 0.5, y: startY + usableH * 0.18, tier: 0 },
-      { x: W * 0.5, y: startY + usableH * 0.48, tier: 1 },
-      { x: W * 0.5, y: startY + usableH * 0.76, tier: 2 }
+      { x: 540, y: startY + usableH * 0.18, tier: 0 },
+      { x: 540, y: startY + usableH * 0.48, tier: 1 },
+      { x: 540, y: startY + usableH * 0.76, tier: 2 }
     ];
 
     const seeds = [];
@@ -368,26 +325,21 @@ class SampleVisualizer {
       }
 
       let cluster;
-      const safePitchNorm = isNaN(pitchNorm) ? 0.5 : Math.max(0, Math.min(1, pitchNorm));
-      const pitchTier = Math.max(0, Math.min(2, Math.floor((1 - safePitchNorm) * 2.99)));
+      const pitchTier = Math.min(2, Math.floor((1 - pitchNorm) * 2.99));
 
       if (isMiddleSpawn) {
         const matchingMid = middleClusters.filter((c) => c.tier === pitchTier);
         cluster = matchingMid.length > 0 ? matchingMid[0] : middleClusters[pitchTier % middleClusters.length];
       } else if (!isDropNote) {
-        const phrase = Math.max(0, Math.floor(n.time / (secPerBar * 2)));
+        const phrase = Math.floor(n.time / (secPerBar * 2));
         const matching = introClusters.filter((c) => c.tier === pitchTier);
         const pool = matching.length > 0 ? matching : introClusters;
         cluster = pool[(phrase + idx + (isLowest12 ? 1 : 0)) % pool.length];
       } else {
-        const phrase = Math.max(0, Math.floor((n.time - dropTime) / (secPerBar * 1.5)));
+        const phrase = Math.floor((n.time - dropTime) / (secPerBar * 1.5));
         const matching = dropClusters.filter((c) => c.tier === pitchTier);
         const pool = matching.length > 0 ? matching : dropClusters;
         cluster = pool[(phrase + Math.floor(h4 * 2) + idx) % pool.length];
-      }
-
-      if (!cluster) {
-        cluster = { x: W * 0.5, y: startY + usableH * 0.5, tier: 1 };
       }
 
       const angle = idx * 2.3999632 + (h1 - 0.5) * 1.3;
@@ -407,11 +359,11 @@ class SampleVisualizer {
       let y0 = Math.max(startY, Math.min(endY, cluster.y + spreadY));
 
       if (isMiddleSpawn) {
-        x0 = Math.max(W * 0.38, Math.min(W * 0.62, x0));
-      } else if (cluster.x < W * 0.5) {
-        x0 = Math.max(75, Math.min(W * 0.40, x0));
+        x0 = Math.max(420, Math.min(660, x0));
+      } else if (cluster.x < 540) {
+        x0 = Math.max(75, Math.min(410, x0));
       } else {
-        x0 = Math.max(W * 0.60, Math.min(W - 75, x0));
+        x0 = Math.max(670, Math.min(this.width - 75, x0));
       }
 
       // anti-clumping relaxation for concurrently visible stars
