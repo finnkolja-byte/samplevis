@@ -69,3 +69,4 @@
   // active adapter provider
   window.storageAdapter = new LocalStorageAdapter();
 })();
+
