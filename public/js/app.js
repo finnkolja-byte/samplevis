@@ -1817,11 +1817,13 @@
 
   function initVizStudio() {
     const drawer = document.getElementById('vizStudioDrawer');
+    const sourceDrawer = document.getElementById('sourceCodeDrawer');
     const openBtn = document.getElementById('openVizStudioBtn');
     const closeBtn = document.getElementById('closeVizStudioBtn');
+    const openSourceBtn = document.getElementById('openSourceDrawerBtn');
+    const closeSourceBtn = document.getElementById('closeSourceDrawerBtn');
     const tabBtns = document.querySelectorAll('.viz-tab-btn');
     const panes = {
-      viz: document.getElementById('vizPaneViz'),
       shader: document.getElementById('vizPaneShader'),
       overlay: document.getElementById('vizPaneOverlay'),
       ui: document.getElementById('vizPaneUi')
@@ -1842,13 +1844,22 @@
     const applyBtn = document.getElementById('vizApplyCodeBtn');
     const saveBtn = document.getElementById('vizSavePresetBtn');
     const statusBar = document.getElementById('vizStudioStatus');
+    const sourceStatusBar = document.getElementById('sourceCodeStatus');
 
     const undoStack = [];
 
     function setStatus(msg, type = '') {
-      if (!statusBar) return;
-      statusBar.textContent = msg;
-      statusBar.className = `viz-status-bar ${type}`.trim();
+      if (statusBar) {
+        statusBar.textContent = msg;
+        statusBar.className = `viz-status-bar ${type}`.trim();
+      }
+    }
+
+    function setSourceStatus(msg, type = '') {
+      if (sourceStatusBar) {
+        sourceStatusBar.textContent = msg;
+        sourceStatusBar.className = `viz-status-bar ${type}`.trim();
+      }
     }
 
     function getActivePresetCopy() {
@@ -1931,8 +1942,22 @@
       drawer.hidden = true;
     }
 
+    function openSourceDrawer() {
+      if (!sourceDrawer) return;
+      syncEditorsFromActive();
+      sourceDrawer.hidden = false;
+      setSourceStatus('ready');
+    }
+
+    function closeSourceDrawer() {
+      if (!sourceDrawer) return;
+      sourceDrawer.hidden = true;
+    }
+
     if (openBtn) openBtn.addEventListener('click', () => (drawer.hidden ? openDrawer() : closeDrawer()));
     if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+    if (openSourceBtn) openSourceBtn.addEventListener('click', () => (sourceDrawer.hidden ? openSourceDrawer() : closeSourceDrawer()));
+    if (closeSourceBtn) closeSourceBtn.addEventListener('click', closeSourceDrawer);
 
     if (openByokLink) {
       openByokLink.addEventListener('click', () => {
@@ -1984,10 +2009,10 @@
           };
 
           await hotReloadPreset(updated);
-          setStatus('applied & reloaded', 'success');
+          setSourceStatus('applied & reloaded', 'success');
         } catch (err) {
           undoStack.pop();
-          setStatus(`error: ${err.message}`, 'error');
+          setSourceStatus(`error: ${err.message}`, 'error');
         }
       });
     }
@@ -2081,8 +2106,9 @@
         e.preventDefault();
         if (drawer.hidden) openDrawer();
         else closeDrawer();
-      } else if (e.key === 'Escape' && drawer && !drawer.hidden) {
-        closeDrawer();
+      } else if (e.key === 'Escape') {
+        if (drawer && !drawer.hidden) closeDrawer();
+        if (sourceDrawer && !sourceDrawer.hidden) closeSourceDrawer();
       }
     });
   }

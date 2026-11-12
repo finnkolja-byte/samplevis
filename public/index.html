@@ -41,8 +41,8 @@
       </button>
     </div>
     <div class="topbar-right">
-      <button class="btn btn-secondary" id="openVizStudioBtn" type="button" title="prompt viz ai or inspect/edit the 3-box preset code">
-        viz &amp; 3-box code
+      <button class="btn btn-secondary" id="openVizStudioBtn" type="button" title="ask viz ai to design or modify your visualizer [ctrl+k]">
+        ask viz
       </button>
       <button class="btn btn-ghost" id="openAiSettingsBtn" type="button" title="configure byok ai endpoint and api key">
         ai settings [byok]
@@ -373,49 +373,69 @@
     </div>
   </div>
 
-  <!-- viz ai & 3-box code studio drawer -->
-  <aside class="viz-drawer" id="vizStudioDrawer" hidden>
+  <!-- right slide-in sidebar: ask viz -->
+  <aside class="viz-sidebar viz-sidebar-right" id="vizStudioDrawer" hidden>
     <div class="viz-drawer-header">
       <div class="viz-drawer-title-group">
-        <span class="viz-drawer-title">viz &amp; 3-box studio</span>
+        <span class="viz-drawer-title">ask viz</span>
         <span class="viz-drawer-preset-id" id="vizActivePresetLabel">constellations</span>
       </div>
       <button class="btn-inline" id="closeVizStudioBtn" type="button">close [esc]</button>
     </div>
 
+    <div class="viz-drawer-body">
+      <label class="field">
+        <span class="field-label">describe visual changes or a new design</span>
+        <textarea id="vizPromptInput" class="viz-prompt-textarea" rows="5" placeholder="e.g. add a subtle film grain, switch the accent to #5e8a7d, and trigger a chromatic flash on chord hits..."></textarea>
+      </label>
+
+      <div class="viz-quick-prompts">
+        <button type="button" class="btn btn-ghost btn-xs viz-chip-btn" data-prompt="Add a soft teal aurora glow behind the canvas that pulses gently with the bass.">+ aurora glow</button>
+        <button type="button" class="btn btn-ghost btn-xs viz-chip-btn" data-prompt="Enable the clips module and add a crisp current chord display in the top right.">+ clips &amp; chord hud</button>
+        <button type="button" class="btn btn-ghost btn-xs viz-chip-btn" data-prompt="Add a subtle retro scanline and film grain shader effect controlled by a sidebar slider.">+ retro grain</button>
+      </div>
+
+      <div class="viz-prompt-actions">
+        <button type="button" class="btn btn-primary" id="vizGenerateBtn">generate with viz</button>
+        <button type="button" class="btn btn-ghost" id="vizUndoBtn" disabled>undo last</button>
+      </div>
+
+      <p class="helper-note" id="vizKeyNotice" hidden>
+        no api key configured yet. <button type="button" class="btn-inline" id="vizOpenByokLink">open ai settings [byok]</button> to connect deepseek, claude, gemini, or local models.
+      </p>
+
+      <div class="viz-source-toggle-row">
+        <button type="button" class="btn-inline" id="openSourceDrawerBtn">see source [3-box json]</button>
+      </div>
+    </div>
+
+    <div class="viz-drawer-footer">
+      <div class="viz-status-bar" id="vizStudioStatus">ready</div>
+      <div class="viz-footer-actions">
+        <button type="button" class="btn btn-secondary" id="vizSavePresetBtn">save preset</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- left slide-in sidebar: 3-box source code inspector & editor -->
+  <aside class="viz-sidebar viz-sidebar-left" id="sourceCodeDrawer" hidden>
+    <div class="viz-drawer-header">
+      <div class="viz-drawer-title-group">
+        <span class="viz-drawer-title">3-box source</span>
+        <span class="code-hint">shader · overlay · ui</span>
+      </div>
+      <button class="btn-inline" id="closeSourceDrawerBtn" type="button">close [esc]</button>
+    </div>
+
     <div class="viz-drawer-tabs" role="tablist">
-      <button type="button" class="viz-tab-btn active" data-viz-tab="viz">ask viz</button>
-      <button type="button" class="viz-tab-btn" data-viz-tab="shader">1. shader</button>
+      <button type="button" class="viz-tab-btn active" data-viz-tab="shader">1. shader</button>
       <button type="button" class="viz-tab-btn" data-viz-tab="overlay">2. overlay</button>
       <button type="button" class="viz-tab-btn" data-viz-tab="ui">3. ui &amp; modules</button>
     </div>
 
     <div class="viz-drawer-body">
-      <!-- tab 1: ask viz -->
-      <div class="viz-tab-pane active" id="vizPaneViz">
-        <label class="field">
-          <span class="field-label">describe visual changes or a new design for viz</span>
-          <textarea id="vizPromptInput" class="viz-prompt-textarea" rows="4" placeholder="e.g. add a subtle film grain, switch the accent to #5e8a7d, and trigger a chromatic flash on chord hits..."></textarea>
-        </label>
-
-        <div class="viz-quick-prompts">
-          <button type="button" class="btn btn-ghost btn-xs viz-chip-btn" data-prompt="Add a soft teal aurora glow behind the canvas that pulses gently with the bass.">+ aurora glow</button>
-          <button type="button" class="btn btn-ghost btn-xs viz-chip-btn" data-prompt="Enable the clips module and add a crisp current chord display in the top right.">+ clips &amp; chord hud</button>
-          <button type="button" class="btn btn-ghost btn-xs viz-chip-btn" data-prompt="Add a subtle retro scanline and film grain shader effect controlled by a sidebar slider.">+ retro grain</button>
-        </div>
-
-        <div class="viz-prompt-actions">
-          <button type="button" class="btn btn-primary" id="vizGenerateBtn">generate with viz</button>
-          <button type="button" class="btn btn-ghost" id="vizUndoBtn" disabled>undo last</button>
-        </div>
-
-        <p class="helper-note" id="vizKeyNotice" hidden>
-          no api key configured yet. <button type="button" class="btn-inline" id="vizOpenByokLink">open ai settings [byok]</button> to connect deepseek or openai.
-        </p>
-      </div>
-
-      <!-- tab 2: shaderBox -->
-      <div class="viz-tab-pane" id="vizPaneShader" hidden>
+      <!-- tab 1: shaderBox -->
+      <div class="viz-tab-pane active" id="vizPaneShader">
         <div class="code-pane-header">
           <span class="field-label">shaderBox.fragmentShader (glsl es 1.00)</span>
           <span class="code-hint">u_time, u_bass, u_chord_hit, u_video_tex</span>
@@ -423,7 +443,7 @@
         <textarea id="codeEditorShader" class="viz-code-editor" spellcheck="false"></textarea>
       </div>
 
-      <!-- tab 3: frontUiBox -->
+      <!-- tab 2: frontUiBox -->
       <div class="viz-tab-pane" id="vizPaneOverlay" hidden>
         <div class="code-pane-header">
           <span class="field-label">frontUiBox.initScript (runs once on load)</span>
@@ -437,7 +457,7 @@
         <textarea id="codeEditorDraw" class="viz-code-editor" spellcheck="false"></textarea>
       </div>
 
-      <!-- tab 4: controlsBox & modules -->
+      <!-- tab 3: controlsBox & modules -->
       <div class="viz-tab-pane" id="vizPaneUi" hidden>
         <div class="code-pane-header">
           <span class="field-label">modules &amp; controlsBox (json)</span>
@@ -447,9 +467,8 @@
     </div>
 
     <div class="viz-drawer-footer">
-      <div class="viz-status-bar" id="vizStudioStatus">ready</div>
+      <div class="viz-status-bar" id="sourceCodeStatus">ready</div>
       <div class="viz-footer-actions">
-        <button type="button" class="btn btn-secondary" id="vizSavePresetBtn">save preset</button>
         <button type="button" class="btn btn-primary" id="vizApplyCodeBtn">apply &amp; reload</button>
       </div>
     </div>
