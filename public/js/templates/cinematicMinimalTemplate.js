@@ -12,6 +12,10 @@
       this.ctx = null;
       this.project = null;
       this.selectedTrackIds = new Set();
+      this.activeVideos = [];
+      this.aspectRatio = '9:16';
+      this.width = 1080;
+      this.height = 1920;
 
       this.params = {
         letterboxHeight: 200,
@@ -44,10 +48,12 @@
     initParticles() {
       this.particles = [];
       const count = 40;
+      const W = this.width || 1080;
+      const H = this.height || 1920;
       for (let i = 0; i < count; i++) {
         this.particles.push({
-          x: Math.random() * 1080,
-          y: Math.random() * 1920,
+          x: Math.random() * W,
+          y: Math.random() * H,
           vx: (Math.random() - 0.5) * 8,
           vy: -Math.random() * 12 - 4,
           r: Math.random() * 2.2 + 0.8,
@@ -55,6 +61,22 @@
           phase: Math.random() * Math.PI * 2
         });
       }
+    }
+
+    setActiveVideos(videos) {
+      this.activeVideos = Array.isArray(videos) ? videos : [];
+    }
+
+    setAspectRatio(ratio) {
+      this.aspectRatio = ratio;
+      const isWidescreen = ratio === '16:9';
+      this.width = isWidescreen ? 1920 : 1080;
+      this.height = isWidescreen ? 1080 : 1920;
+      if (this.canvas) {
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+      }
+      this.initParticles();
     }
 
     setProject(proj) {
@@ -131,8 +153,8 @@
     renderFrame(time, activeVid) {
       if (!this.canvas || !this.ctx) return;
       const ctx = this.ctx;
-      const W = 1080;
-      const H = 1920;
+      const W = this.width || (this.canvas ? this.canvas.width : 1080);
+      const H = this.height || (this.canvas ? this.canvas.height : 1920);
       const proj = this.project || {};
       const dur = proj.duration || 30.0;
       const dropTime = (typeof proj.dropTime === 'number' && !isNaN(proj.dropTime))

@@ -1,8 +1,4 @@
-/**
- * SampleVis 9:16 Night-Sky Constellation + Anime Drop + Liquid Glass Piano Roll Visualizer
- * Deterministic frame renderer: given timestamp `t` (seconds), renders identical 1080x1920 frames
- * for both real-time 60fps preview and client-side WebCodecs MP4 export.
- */
+// deterministic 1080x1920 constellation & piano roll renderer for 60fps preview and webcodecs export
 class SampleVisualizer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -10,7 +6,6 @@ class SampleVisualizer {
     this.width = 1080;
     this.height = 1920;
 
-    // Layout geometry (1080x1920) - top bar removed for open sky
     this.headerHeight = 0;
     this.pianoRollTop = 1390;
     this.skyTop = 0;
@@ -18,7 +13,6 @@ class SampleVisualizer {
     this.skyCenterX = this.width * 0.5;
     this.skyCenterY = this.skyHeight * 0.48;
 
-    // Tunable parameters
     this.params = {
       driftSpeed: 1.0,
       linkDistance: 240,
@@ -29,7 +23,7 @@ class SampleVisualizer {
       cutMode: 'chord', // 'chord' | 'single' | '2bar' | '4bar' | 'impact'
       loopIntroMidi: true,
       seamlessLoop: true,
-      loopTransitionDuration: null, // defaults to 2 musical beats (~0.85s - 1.0s) for natural turnaround
+      loopTransitionDuration: null, // defaults to 2 beats
       preDropDuration: 2.2,
       speedRamping: true,
       middleSpawnChance: 0.20,
@@ -40,7 +34,6 @@ class SampleVisualizer {
       autoFrame: true
     };
 
-    // Project state (lowercase aesthetic)
     this.project = {
       brand: 'aesttc',
       sampleNumber: '',
@@ -63,11 +56,46 @@ class SampleVisualizer {
     this.minPitch = 48;
     this.maxPitch = 84;
 
-    // Background ambient stars & celestial stardust
+    this.activeVideos = [];
+    this.aspectRatio = '9:16';
+
     this.bgStars = this._createBgStars(160);
     this.stardust = this._createStardust(90);
     this.bgWarpLines = this._createBgWarpLines(36);
     this.preDropSparkles = this._createPreDropSparkles(150);
+  }
+
+  setActiveVideos(videos) {
+    this.activeVideos = Array.isArray(videos) ? videos : [];
+  }
+
+  setAspectRatio(ratio) {
+    this.aspectRatio = ratio;
+    const isWidescreen = ratio === '16:9';
+    this.width = isWidescreen ? 1920 : 1080;
+    this.height = isWidescreen ? 1080 : 1920;
+    if (this.canvas) {
+      this.canvas.width = this.width;
+      this.canvas.height = this.height;
+    }
+    this.pianoRollTop = Math.round(this.height * (isWidescreen ? 0.65 : 0.724));
+    this.pianoRollHeight = this.height - this.pianoRollTop;
+    this.skyTop = 0;
+    this.skyHeight = this.pianoRollTop;
+    this.skyCenterX = this.width * 0.5;
+    this.skyCenterY = this.skyHeight * 0.48;
+    this.bgStars = this._createBgStars(160);
+    this.stardust = this._createStardust(90);
+    this.bgWarpLines = this._createBgWarpLines(36);
+    this.preDropSparkles = this._createPreDropSparkles(150);
+    this.rebuildNoteNodes();
+  }
+
+  getDropTime() {
+    const dur = this.project?.duration || 30.0;
+    return (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
+      ? this.project.dropTime
+      : (dur * 0.5);
   }
 
   _hash(n) {
@@ -82,7 +110,7 @@ class SampleVisualizer {
     for (let i = 0; i < count; i++) {
       const warmth = this._hash(i * 3.7 + 1.2);
       const rawSpeed = 0.6 + this._hash(i * 23.9) * 2.0;
-      // Quantize speed to integer harmonic of loop frequency so twinkle(duration) == twinkle(0)
+      // quantize speed to an integer harmonic of the loop frequency so twinkle(dur) === twinkle(0)
       const harmonicK = Math.max(1, Math.round(rawSpeed / baseFreq));
       const speed = harmonicK * baseFreq;
       arr.push({
@@ -108,10 +136,9 @@ class SampleVisualizer {
     const loopWin = this.params.loopTransitionDuration || Math.max(0.75, Math.min(1.2, secPerBeat * 2));
     if (t > dur - loopWin) {
       const p = Math.max(0, Math.min(1.0, (t - (dur - loopWin)) / loopWin));
-      // Hermite ease for environment (sky, stars, camera): smooth S-curve settling to 0
       const easeP = p * p * (3 - 2 * p);
       const loopFade = Math.max(0, 1.0 - easeP);
-      // Clip fade: completely dissolved by p = 0.70 so final ~250ms is clean starry sky identical to frame 0
+      // dissolve video clip by p = 0.70 so the final ~250ms matches frame 0
       const clipProg = Math.min(1.0, p / 0.70);
       const clipEase = clipProg * clipProg * (3 - 2 * clipProg);
       const clipFade = Math.max(0, 1.0 - clipEase);
@@ -125,14 +152,11 @@ class SampleVisualizer {
   }
 
   _getPreDropLift(t) {
-    const durProj = this.project?.duration || 30.0;
-    const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
-      ? this.project.dropTime
-      : (durProj * 0.5);
+    const dropTime = this.getDropTime();
     const dur = this.params?.preDropDuration || 2.2;
     if (t >= dropTime - dur && t < dropTime) {
       const p = (t - (dropTime - dur)) / dur;
-      // Slower subtle float for longer at the start, then explosive rapid acceleration
+      // slow initial float followed by steep pre-drop acceleration
       const ease = 0.06 * Math.pow(p, 1.6) + 0.94 * Math.pow(p, 4.8);
       return { pLift: p, liftEase: ease, isLifting: true, dur };
     }
@@ -215,22 +239,24 @@ class SampleVisualizer {
 
   rebuildNoteNodes() {
     const notes = [];
-    const dur = this.project?.duration || 30.0;
-  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
-    ? this.project.dropTime
-    : (dur * 0.5);
+    const dropTime = this.getDropTime();
     const duration = this.project.duration || 29.09;
 
     for (const track of this.rawTracks) {
       if (!this.selectedTrackIds.has(track.id)) continue;
       const trackNotes = track.notes || [];
       let maxNoteTime = 0;
-      for (const n of trackNotes) {
+      for (const raw of trackNotes) {
+        const time = (raw.time !== undefined) ? raw.time : (raw.startTime !== undefined ? raw.startTime : 0);
+        const midi = (raw.midi !== undefined) ? raw.midi : (raw.pitch !== undefined ? raw.pitch : 60);
+        const duration = (raw.duration !== undefined) ? raw.duration : 0.5;
+        const velocity = (raw.velocity !== undefined) ? raw.velocity : 0.8;
+        const n = { ...raw, time, midi, duration, velocity, trackId: track.id };
         if (n.time > maxNoteTime) maxNoteTime = n.time;
-        notes.push({ ...n, trackId: track.id });
+        notes.push(n);
       }
 
-      // If this track only exists in the Intro (before Drop) and loopIntroMidi is checked, mirror it into the Drop
+      // mirror intro-only midi tracks into the drop when loopIntroMidi is enabled
       if (
         this.params.loopIntroMidi &&
         trackNotes.length > 0 &&
@@ -238,13 +264,21 @@ class SampleVisualizer {
         dropTime > 2 &&
         duration > dropTime + 2
       ) {
-        for (const n of trackNotes) {
-          const mirroredTime = n.time + dropTime;
+        for (const raw of trackNotes) {
+          const origTime = (raw.time !== undefined) ? raw.time : (raw.startTime !== undefined ? raw.startTime : 0);
+          const mirroredTime = origTime + dropTime;
           if (mirroredTime + 0.05 < duration) {
+            const midi = (raw.midi !== undefined) ? raw.midi : (raw.pitch !== undefined ? raw.pitch : 60);
+            const duration = (raw.duration !== undefined) ? raw.duration : 0.5;
+            const velocity = (raw.velocity !== undefined) ? raw.velocity : 0.8;
+            const origBeat = raw.beat !== undefined ? raw.beat : (origTime * (this.project.bpm || 120)) / 60;
             notes.push({
-              ...n,
+              ...raw,
               time: Number(mirroredTime.toFixed(4)),
-              beat: Number((n.beat + (dropTime * this.project.bpm) / 60).toFixed(4)),
+              midi,
+              duration,
+              velocity,
+              beat: Number((origBeat + (dropTime * (this.project.bpm || 120)) / 60).toFixed(4)),
               trackId: track.id,
               mirrored: true
             });
@@ -269,46 +303,44 @@ class SampleVisualizer {
       this.maxPitch = 84;
     }
 
-    // Build organic star trajectories for each note
-    // Smooth, premium crystallization + unique warm/yellow bloom shade for each star
+    // build star trajectories for each note
     const pitchSpan = Math.max(1, this.maxPitch - this.minPitch);
     const bpm = this.project.bpm || 120;
     const secPerBar = (60 / bpm) * 4;
-    const startY = 50; // clean margin from the very top of the canvas
-    const endY = this.pianoRollTop - 110; // right above track info & piano roll (~1280px)
-    const usableH = endY - startY; // full vertical canvas height (~1230px)
+    const startY = 50;
+    const endY = this.pianoRollTop - 110;
+    const usableH = endY - startY;
+    const W = this.width;
 
-    // Identify the lowest 12 unique pitches so they spawn noticeably larger alpha stars
+    // lowest 12 unique pitches spawn larger primary stars
     const uniquePitches = Array.from(new Set(notes.map((n) => n.midi))).sort((a, b) => a - b);
     const lowest12Set = new Set(uniquePitches.slice(0, 12));
 
-    // Flanking perimeter clusters framing the scene on the left and right across the full height of the sky
+    // flanking perimeter clusters framing left and right
     const introClusters = [
-      { x: 280, y: startY + usableH * 0.22, tier: 0 }, // West Upper
-      { x: 800, y: startY + usableH * 0.26, tier: 0 }, // East Upper
-      { x: 260, y: startY + usableH * 0.50, tier: 1 }, // West Mid
-      { x: 820, y: startY + usableH * 0.54, tier: 1 }, // East Mid
-      { x: 290, y: startY + usableH * 0.78, tier: 2 }, // West Lower (above piano roll)
-      { x: 790, y: startY + usableH * 0.84, tier: 2 }  // East Lower (above piano roll)
+      { x: W * 0.26, y: startY + usableH * 0.22, tier: 0 },
+      { x: W * 0.74, y: startY + usableH * 0.26, tier: 0 },
+      { x: W * 0.24, y: startY + usableH * 0.50, tier: 1 },
+      { x: W * 0.76, y: startY + usableH * 0.54, tier: 1 },
+      { x: W * 0.27, y: startY + usableH * 0.78, tier: 2 },
+      { x: W * 0.73, y: startY + usableH * 0.84, tier: 2 }
     ];
 
-    // In drop: flanking perimeter clusters framing the anime scene across the entire screen height
     const dropClusters = [
-      { x: 180, y: startY + usableH * 0.16, tier: 0 }, // Far-Left Upper
-      { x: 900, y: startY + usableH * 0.16, tier: 0 }, // Far-Right Upper
-      { x: 220, y: startY + usableH * 0.42, tier: 1 }, // Far-Left Mid-Upper
-      { x: 860, y: startY + usableH * 0.42, tier: 1 }, // Far-Right Mid-Upper
-      { x: 200, y: startY + usableH * 0.68, tier: 2 }, // Far-Left Mid-Lower
-      { x: 880, y: startY + usableH * 0.68, tier: 2 }, // Far-Right Mid-Lower
-      { x: 190, y: startY + usableH * 0.86, tier: 2 }, // Far-Left Floor (above piano roll)
-      { x: 890, y: startY + usableH * 0.86, tier: 2 }  // Far-Right Floor (above piano roll)
+      { x: W * 0.17, y: startY + usableH * 0.16, tier: 0 },
+      { x: W * 0.83, y: startY + usableH * 0.16, tier: 0 },
+      { x: W * 0.20, y: startY + usableH * 0.42, tier: 1 },
+      { x: W * 0.80, y: startY + usableH * 0.42, tier: 1 },
+      { x: W * 0.18, y: startY + usableH * 0.68, tier: 2 },
+      { x: W * 0.82, y: startY + usableH * 0.68, tier: 2 },
+      { x: W * 0.18, y: startY + usableH * 0.86, tier: 2 },
+      { x: W * 0.82, y: startY + usableH * 0.86, tier: 2 }
     ];
 
-    // Central constellation clusters spanning upper, mid, and floor (spawned with smaller probability)
     const middleClusters = [
-      { x: 540, y: startY + usableH * 0.18, tier: 0 }, // Center Upper
-      { x: 540, y: startY + usableH * 0.48, tier: 1 }, // Center Mid
-      { x: 540, y: startY + usableH * 0.76, tier: 2 }  // Center Lower (above piano roll)
+      { x: W * 0.5, y: startY + usableH * 0.18, tier: 0 },
+      { x: W * 0.5, y: startY + usableH * 0.48, tier: 1 },
+      { x: W * 0.5, y: startY + usableH * 0.76, tier: 2 }
     ];
 
     const seeds = [];
@@ -323,50 +355,46 @@ class SampleVisualizer {
       const h4 = this._hash(idx * 67.3 + n.midi * 11.9);
       const hMid = this._hash(idx * 79.3 + n.midi * 23.1 + n.time * 7.9);
 
-      const pitchNorm = (n.midi - this.minPitch) / pitchSpan; // 0..1
+      const pitchNorm = (n.midi - this.minPitch) / pitchSpan;
       const isDropNote = n.time >= dropTime;
       const isMiddleSpawn = hMid < middleChance;
 
-      // Classify into 3 distinct visual tiers:
-      // - low: lowest 12 notes (or bottom register) -> large, prominent constellation stars with diffraction spikes
-      // - mid: mid notes -> crystalline starlight motes with shimmer rings
-      // - high: high notes -> small pinpoint shining dots that fade quickly
       const isLowest12 = lowest12Set.has(n.midi) || (n.midi - this.minPitch <= 12);
       let tier = 'mid';
       if (isLowest12 || pitchNorm < 0.28) {
-        tier = 'low'; // bottom / chord / bass notes
+        tier = 'low';
       } else if (pitchNorm > 0.68 || /sparkle|bell/i.test(n.track || '')) {
-        tier = 'high'; // high / sparkle notes
+        tier = 'high';
       }
 
-      // Assign note to a celestial constellation cluster across full height:
-      // High register notes bias towards upper clusters, mid to mid, bass/chords to lower sky near piano roll
       let cluster;
-      const pitchTier = Math.min(2, Math.floor((1 - pitchNorm) * 2.99)); // 0: high, 1: mid, 2: low
+      const safePitchNorm = isNaN(pitchNorm) ? 0.5 : Math.max(0, Math.min(1, pitchNorm));
+      const pitchTier = Math.max(0, Math.min(2, Math.floor((1 - safePitchNorm) * 2.99)));
 
       if (isMiddleSpawn) {
-        // Smaller chance: spawn gracefully in the middle column across the full height
         const matchingMid = middleClusters.filter((c) => c.tier === pitchTier);
         cluster = matchingMid.length > 0 ? matchingMid[0] : middleClusters[pitchTier % middleClusters.length];
       } else if (!isDropNote) {
-        const phrase = Math.floor(n.time / (secPerBar * 2));
+        const phrase = Math.max(0, Math.floor(n.time / (secPerBar * 2)));
         const matching = introClusters.filter((c) => c.tier === pitchTier);
         const pool = matching.length > 0 ? matching : introClusters;
         cluster = pool[(phrase + idx + (isLowest12 ? 1 : 0)) % pool.length];
       } else {
-        const phrase = Math.floor((n.time - dropTime) / (secPerBar * 1.5));
+        const phrase = Math.max(0, Math.floor((n.time - dropTime) / (secPerBar * 1.5)));
         const matching = dropClusters.filter((c) => c.tier === pitchTier);
         const pool = matching.length > 0 ? matching : dropClusters;
         cluster = pool[(phrase + Math.floor(h4 * 2) + idx) % pool.length];
       }
 
-      // Spread stars out naturally around their cluster center across the full sky:
+      if (!cluster) {
+        cluster = { x: W * 0.5, y: startY + usableH * 0.5, tier: 1 };
+      }
+
       const angle = idx * 2.3999632 + (h1 - 0.5) * 1.3;
       let spreadX;
       let spreadY;
 
       if (isMiddleSpawn) {
-        // Gentle organic scatter around the 540 center axis
         spreadX = (h1 - 0.5) * 110 + Math.cos(angle) * (20 + h3 * 30);
         spreadY = (h2 - 0.5) * 80 + Math.sin(angle) * 35;
       } else {
@@ -379,19 +407,19 @@ class SampleVisualizer {
       let y0 = Math.max(startY, Math.min(endY, cluster.y + spreadY));
 
       if (isMiddleSpawn) {
-        x0 = Math.max(420, Math.min(660, x0));
-      } else if (cluster.x < 540) {
-        x0 = Math.max(75, Math.min(410, x0));
+        x0 = Math.max(W * 0.38, Math.min(W * 0.62, x0));
+      } else if (cluster.x < W * 0.5) {
+        x0 = Math.max(75, Math.min(W * 0.40, x0));
       } else {
-        x0 = Math.max(670, Math.min(this.width - 75, x0));
+        x0 = Math.max(W * 0.60, Math.min(W - 75, x0));
       }
 
-      // Anti-clumping relaxation: enforce minimum distance from other concurrently visible stars
+      // anti-clumping relaxation for concurrently visible stars
       for (let iter = 0; iter < 12; iter++) {
         let tooClose = false;
         for (let j = Math.max(0, idx - 18); j < idx; j++) {
           const prev = seeds[j];
-          if (Math.abs(prev.note.time - n.time) > 8.5) continue; // Only check stars active at the same time
+          if (Math.abs(prev.note.time - n.time) > 8.5) continue;
 
           const dx = x0 - prev.x0;
           const dy = y0 - prev.y0;
@@ -416,20 +444,16 @@ class SampleVisualizer {
         if (!tooClose) break;
       }
 
-      // Slow-motion cascading arc kinematics down to the sides:
-      // Stars on the left half arc down-left (-1); stars on the right half arc down-right (+1);
-      // Stars near the center alternate fan-out symmetrically across both flanks
       let arcDir;
       if (x0 < this.width * 0.46) {
-        arcDir = -1; // Arc leftward
+        arcDir = -1;
       } else if (x0 > this.width * 0.54) {
-        arcDir = 1;  // Arc rightward
+        arcDir = 1;
       } else {
-        // Center notes fan out symmetrically across both flanks
         arcDir = (idx % 2 === 0 ? -1 : 1) * (h3 > 0.15 ? 1 : -1);
       }
 
-      const defiesGravity = h4 > 0.82; // ~18% anchor stars float weightlessly
+      const defiesGravity = h4 > 0.82;
       const speedMult = tier === 'high' ? 0.7 : (tier === 'mid' ? 0.9 : 1.0);
       const dropLateralBoost = isDropNote ? 1.25 : 1.0;
 
@@ -439,95 +463,68 @@ class SampleVisualizer {
       let ay = 0;
 
       if (defiesGravity) {
-        // Suspended anchor stars float weightlessly with gentle lateral drift
         vx0 = (h3 - 0.5) * (isMiddleSpawn ? 6.0 : 12.0) * speedMult * dropLateralBoost;
         vy0 = (h1 - 0.52) * 3.0 * speedMult;
-        ax = 0;
-        ay = 0;
       } else if (isMiddleSpawn) {
-        // Slower outward arc for middle stars so constellations can form and linger in the center
         vx0 = (3.5 + h1 * 4.0 + n.velocity * 2.5) * speedMult * (isDropNote ? 1.15 : 1.0);
         ax = (0.4 + h3 * 0.6) * speedMult * (isDropNote ? 1.15 : 1.0);
         vy0 = (4 + h2 * 4.5) * speedMult;
         ay = (1.5 + h4 * 1.8 + n.velocity * 0.8) * speedMult;
       } else {
-        // Slower cascading arc down to the sides (allowing constellations to form and stay linked):
-        // Gentle downward drift (4-9 px/s) + gentle downward celestial gravity (1.5-3.2 px/s^2)
-        // Gentle outward lateral speed (9-17 px/s) + gentle outward acceleration (1.2-2.7 px/s^2)
         vx0 = (9 + h1 * 8 + n.velocity * 5) * speedMult * dropLateralBoost;
         ax = (1.2 + h3 * 1.5) * speedMult * dropLateralBoost;
         vy0 = (4 + h2 * 5) * speedMult;
         ay = (1.5 + h4 * 1.8 + n.velocity * 0.8) * speedMult;
       }
 
-        // Unique warmth shade for this star (from soft starlight to warm amber & golden pearl)
-        const warmth = h4; // 0..1
-        let colorR = 255;
-        let colorG = Math.round(230 + warmth * 20);
-        let colorB = Math.round(155 + (1 - warmth) * 90);
+      const warmth = h4;
+      const colorR = 255;
+      let colorG = Math.round(230 + warmth * 20);
+      let colorB = Math.round(155 + (1 - warmth) * 90);
 
-        // Star sizing: lowest 12 notes are a good bit bigger with major bloom halos
-        let radius = 1.6 + n.velocity * 1.5;
-        if (tier === 'low') {
-          radius = 5.2 + n.velocity * 4.2; // A good bit bigger for lowest 12 notes (~7.3–9.4px)
-        } else if (tier === 'high') {
-          radius = 1.1 + n.velocity * 0.8; // small pinpoint shining dot
-          colorG = Math.min(255, colorG + 15);
-          colorB = Math.max(130, colorB - 20);
-        }
+      let radius = 1.6 + n.velocity * 1.5;
+      if (tier === 'low') {
+        radius = 5.2 + n.velocity * 4.2;
+      } else if (tier === 'high') {
+        radius = 1.1 + n.velocity * 0.8;
+        colorG = Math.min(255, colorG + 15);
+        colorB = Math.max(130, colorB - 20);
+      }
 
-        const topLinkChance = this.params.topStarLinkChance !== undefined ? this.params.topStarLinkChance : 0.22;
-        const canLink = tier !== 'high' || (this._hash(idx * 47.9 + n.midi * 13.1 + n.time * 5.3) < topLinkChance);
+      const topLinkChance = this.params.topStarLinkChance !== undefined ? this.params.topStarLinkChance : 0.22;
+      const canLink = tier !== 'high' || (this._hash(idx * 47.9 + n.midi * 13.1 + n.time * 5.3) < topLinkChance);
 
-        const rot0 = h1 * Math.PI * 2;
-        const rotSpeed = (h2 > 0.5 ? 1 : -1) * (0.28 + h3 * 0.55);
-        const fleckCount = tier === 'low' ? 3 : (tier === 'mid' ? 2 : 1);
-        const dirtyFlecks = [];
-        for (let fi = 0; fi < fleckCount; fi++) {
-          const fH1 = this._hash(idx * 71.3 + fi * 29.7 + 1.2);
-          const fH2 = this._hash(idx * 43.1 + fi * 17.9 + 5.8);
-          dirtyFlecks.push({
-            dist: 1.5 + fH1 * 1.9,
-            angle: fH2 * Math.PI * 2,
-            r: 0.16 + fH1 * 0.14
-          });
-        }
-
-          seeds.push({
-            idx,
-            note: n,
-            tier,
-            canLink,
-            defiesGravity,
-            x0,
-            y0,
-            arcDir,
-            vx0,
-            ax,
-            vy0,
-            ay,
-            vx: arcDir * vx0,
-            vy: vy0,
-            freq1: 0.32 + h1 * 0.35,
-            freq2: 0.75 + h2 * 0.55,
-            amp1: tier === 'high' ? 6 + h3 * 6 : 10 + h3 * 10,
-            amp2: tier === 'high' ? 2 + h1 * 4 : 4 + h1 * 6,
-            phaseX1: h2 * Math.PI * 2,
-            phaseX2: h3 * Math.PI * 2,
-            phaseY1: h1 * Math.PI * 2,
-            phaseY2: h4 * Math.PI * 2,
-            rot0,
-            rotSpeed,
-            dirtyFlecks,
-            radius,
-            warmth,
-            colorR,
-            colorG,
-            colorB,
-            hasShootingTrail: tier !== 'high' && n.velocity > 0.82 && h2 > 0.75
-  });
-}
-this.starSeeds = seeds;
+      seeds.push({
+        idx,
+        note: n,
+        tier,
+        canLink,
+        defiesGravity,
+        x0,
+        y0,
+        arcDir,
+        vx0,
+        ax,
+        vy0,
+        ay,
+        vx: arcDir * vx0,
+        vy: vy0,
+        freq1: 0.32 + h1 * 0.35,
+        freq2: 0.75 + h2 * 0.55,
+        amp1: tier === 'high' ? 6 + h3 * 6 : 10 + h3 * 10,
+        amp2: tier === 'high' ? 2 + h1 * 4 : 4 + h1 * 6,
+        phaseX1: h2 * Math.PI * 2,
+        phaseX2: h3 * Math.PI * 2,
+        phaseY1: h1 * Math.PI * 2,
+        phaseY2: h4 * Math.PI * 2,
+        radius,
+        warmth,
+        colorR,
+        colorG,
+        colorB
+      });
+    }
+    this.starSeeds = seeds;
     this._computeChordTimelineMarkers();
   }
 
@@ -547,10 +544,7 @@ this.starSeeds = seeds;
     return notes;
   }
 
-  /**
-   * Detects the musical chord at timestamp t from sounding and onset notes.
-   * Determines root and quality (e.g. Bmaj, G#m7, F#maj, Emaj7).
-   */
+  // detects the chord root and quality at timestamp t from active notes
   _detectChordAt(t, notePool) {
     const active = notePool.filter((n) =>
       (n.time >= t - 0.08 && n.time <= t + 0.35) ||
@@ -583,7 +577,7 @@ this.starSeeds = seeds;
       { name: '5',    intervals: [0, 7],        weight: 0.85 }
     ];
 
-    // 1. Evaluate bass root first
+    // evaluate bass root first
     let bestChord = null;
     let bestScore = -999;
 
@@ -607,7 +601,7 @@ this.starSeeds = seeds;
       return bestChord;
     }
 
-    // 2. If no strong bass root match, evaluate other pitch classes
+    // fallback: evaluate remaining pitch classes
     for (const root of pitchSet) {
       if (root === bassRoot) continue;
       for (const type of CHORD_TYPES) {
@@ -630,15 +624,9 @@ this.starSeeds = seeds;
     return bestChord || (NOTE_NAMES[bassRoot] + 'maj');
   }
 
-  /**
-   * Computes all chord change markers across the entire track (intro + drop).
-   */
   _computeChordTimelineMarkers() {
     const bpm = this.project.bpm || 120;
-    const dur = this.project?.duration || 30.0;
-  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
-    ? this.project.dropTime
-    : (dur * 0.5);
+    const dropTime = this.getDropTime();
     const duration = this.project.duration || 29.09;
     const notePool = this._getAllProjectNotes();
     if (notePool.length === 0) {
@@ -708,21 +696,14 @@ _getAudioEnergyAt(t) {
   return peaks[i0] * (1 - frac) + peaks[i1] * frac;
 }
 
-/**
- * Computes a star's position & snappy arrival at timestamp `t`
- */
 _getStarState(seed, t, driftMult) {
   const age = t - seed.note.time;
   if (age < 0) return null;
 
   const dAge = age * driftMult;
-  const dur = this.project?.duration || 30.0;
-  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
-    ? this.project.dropTime
-    : (dur * 0.5);
+  const dropTime = this.getDropTime();
   const isPreDropNote = seed.note.time < dropTime;
 
-  // Pre-drop stars accelerate upwards and swoosh out before the drop pulse
   let preDropLiftY = 0;
   let preDropAlpha = 1;
   let streakStretch = 1;
@@ -730,7 +711,6 @@ _getStarState(seed, t, driftMult) {
 
   if (isPreDropNote) {
     if (t >= dropTime) {
-      // Once the drop hits, intro stars have completely exited the scene into the pulse!
       return null;
     }
     const liftInfo = this._getPreDropLift(t);
@@ -743,25 +723,22 @@ _getStarState(seed, t, driftMult) {
     }
   }
 
-  // Celestial band drift: gentle top-left to bottom-right movement trend (+X, +Y)
-  const bandDriftX = dAge * 15.0; // gentle rightward celestial stream
-  const bandDriftY = dAge * 9.5;  // gentle downward celestial stream
+  // top-left to bottom-right celestial stream
+  const bandDriftX = dAge * 15.0;
+  const bandDriftY = dAge * 9.5;
 
   let arcX = 0;
   let arcY = 0;
 
   if (seed.defiesGravity) {
-    // Celestial anchor stars: suspended in place with subtle weightless drift + band stream
     arcX = seed.vx0 * dAge + bandDriftX;
     arcY = seed.vy0 * dAge + bandDriftY;
   } else {
-    // Cascading arc modulated with top-left to bottom-right celestial band flow
     const dAgeClamped = Math.min(12, dAge);
     arcX = (seed.arcDir * (seed.vx0 * dAgeClamped + 0.5 * seed.ax * dAgeClamped * dAgeClamped) * 0.65) + bandDriftX;
     arcY = (seed.vy0 * dAgeClamped + 0.5 * seed.ay * dAgeClamped * dAgeClamped) + bandDriftY;
   }
 
-  // Organic multi-harmonic wandering (gentle pendulum sway superimposed on the arc)
   const wanderX =
     Math.sin(dAge * seed.freq1 + seed.phaseX1) * seed.amp1 +
     Math.sin(dAge * seed.freq2 + seed.phaseX2) * seed.amp2;
@@ -771,7 +748,6 @@ _getStarState(seed, t, driftMult) {
   const x = seed.x0 + arcX + wanderX;
   const y = seed.y0 + arcY + wanderY + preDropLiftY;
 
-  // Fade out softly only as it approaches or passes the screen boundaries
   const margin = 120;
   if (
     x < -margin ||
@@ -791,15 +767,12 @@ _getStarState(seed, t, driftMult) {
   if (y > this.height - 70)
     edgeAlpha = Math.min(edgeAlpha, Math.max(0, (this.height + margin - y) / 170));
 
-  // Snappy arrival on note impact: fast pop-in in ~80ms
   const birthDuration = 0.08;
   const birthEase = Math.min(1, Math.max(0, age / birthDuration));
 
-  // Snappy birth flare
   const flareDuration = seed.tier === 'high' ? 0.38 : 0.22;
   const flare = age < flareDuration ? Math.pow(1 - age / flareDuration, 2) : 0;
 
-  // High notes shine strongly when spawned, then fade out quickly over ~1.6s
   let timeFade = 1;
   if (seed.tier === 'high') {
     timeFade = Math.max(0, 1 - age / 1.65);
@@ -830,21 +803,17 @@ _getEffectiveTimeOfDay(t) {
   }
 
   const dur = this.project?.duration || 30.0;
-  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
-    ? this.project.dropTime
-    : (dur * 0.5);
+  const dropTime = this.getDropTime();
   const isPostDrop = tCurrent >= dropTime;
-  const sunsetTarget = 40; // moody night-side dusk (subtle violet-indigo twilight, avoiding bright orange clip tint)
+  const sunsetTarget = 40; // moody dusk without tinting the clip orange
 
   if (isPostDrop) {
     const loopFade = this._getLoopFade(tCurrent);
-    // Smoothly returns from sunset to baseTod at the loop seam
     return baseTod + (sunsetTarget - baseTod) * loopFade;
   }
 
   const { isLifting, liftEase } = this._getPreDropLift(tCurrent);
   if (isLifting) {
-    // While pre-drop motion blur rushes upward, smoothly shift to sunset
     return baseTod + (sunsetTarget - baseTod) * liftEase;
   }
 
@@ -878,8 +847,7 @@ _mixRgba(r1, g1, b1, a1, r2, g2, b2, a2, f) {
 _getSkyGradientColors(postDropBlend, t) {
   const tod = this._getEffectiveTimeOfDay(t);
 
-  // 4 Keyframe Palettes: [top, mid, bot, horizon] + postDropBlend
-  // Keyframe 0: Deep Night (tod = 0)
+  // 4 sky keyframes: deep night (0), midnight (25), dusk (60), daylight (100)
   const k0 = {
     top: [2 + postDropBlend * 1, 3 + postDropBlend * 1, 6 + postDropBlend * 3],
     mid: [4 + postDropBlend * 2, 6 + postDropBlend * 3, 12 + postDropBlend * 6],
@@ -887,7 +855,6 @@ _getSkyGradientColors(postDropBlend, t) {
     horizon: [5 + postDropBlend * 2, 6 + postDropBlend * 2, 14 + postDropBlend * 4]
   };
 
-  // Keyframe 1: Midnight / Standard (tod = 25) - identical baseline to original
   const k1 = {
     top: [4 + postDropBlend * 2, 5 + postDropBlend * 3, 10 + postDropBlend * 9],
     mid: [7 + postDropBlend * 5, 10 + postDropBlend * 8, 20 + postDropBlend * 20],
@@ -895,7 +862,6 @@ _getSkyGradientColors(postDropBlend, t) {
     horizon: [8 + postDropBlend * 4, 10 + postDropBlend * 5, 22 + postDropBlend * 10]
   };
 
-  // Keyframe 2: Sunset / Dusk (tod = 60) - warm anime twilight glow (middle of slider)
   const k2 = {
     top: [24 + postDropBlend * 4, 18 + postDropBlend * 2, 48 + postDropBlend * 8],
     mid: [92 + postDropBlend * 16, 38 + postDropBlend * 8, 76 + postDropBlend * 12],
@@ -903,7 +869,6 @@ _getSkyGradientColors(postDropBlend, t) {
     horizon: [65 + postDropBlend * 8, 35 + postDropBlend * 6, 55 + postDropBlend * 8]
   };
 
-  // Keyframe 3: Daylight Reference (tod = 100) - azure sky, lilac cloud, golden amber sunrise, violet mist hills
   const k3 = {
     top: [122 + postDropBlend * 4, 138 + postDropBlend * 4, 228 + postDropBlend * 4],
     mid: [175 + postDropBlend * 6, 128 + postDropBlend * 6, 168 + postDropBlend * 4],
@@ -944,52 +909,40 @@ _getInitialCameraState(motionMult) {
   };
 }
 
-/**
- * Main render entry point for timestamp `t` (in seconds)
- * Deterministic 60fps frame generator
- */
 renderFrame(tCurrent, activeVideoFrame = null) {
   const ctx = this.ctx;
   this._tCurrent = tCurrent;
   const W = this.width;
   const H = this.height;
-  const dur = this.project?.duration || 30.0;
-  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
-    ? this.project.dropTime
-    : (dur * 0.5);
+  const dropTime = this.getDropTime();
   const isPostDrop = tCurrent >= dropTime;
   const dropAge = isPostDrop ? tCurrent - dropTime : -1;
   const energy = this._getAudioEnergyAt(tCurrent);
   const bloom = this.params.bloomIntensity;
 
-  // Pre-drop upward lift and motion blur factors (slower subtle drift early on, then rapid zoosh)
   const { pLift, liftEase, isLifting } = this._getPreDropLift(tCurrent);
 
-  // 1. Organic camera sway, pre-drop tension rumble & drop impact punch
+  // camera sway, pre-drop tension rumble, and drop impact punch
   const motionMult = this.params.cameraMotion || 1.0;
   let camX = 0;
   let camY = 0;
   let camRot = 0;
 
   if (motionMult > 0.01) {
-    // Smooth transition from slow intro camera drift to energetic post-drop handheld motion
     const dropBlend = isPostDrop ? 1.0 : (isLifting ? Math.pow(pLift, 1.8) : 0.0);
 
-    // 1a. Intro "non-drop" camera motion: much slower, graceful cosmic drift with calm breathing
     const swayIntroX = Math.sin(tCurrent * 0.20) * 3.2 + Math.sin(tCurrent * 0.44) * 1.2;
     const swayIntroY = Math.cos(tCurrent * 0.16) * 2.6 + Math.cos(tCurrent * 0.38) * 1.0;
     const jitterIntroX = Math.sin(tCurrent * 3.2) * 0.12;
     const jitterIntroY = Math.cos(tCurrent * 3.8) * 0.12;
     const rotIntro = Math.sin(tCurrent * 0.14) * 0.0010;
 
-    // 1b. Post-drop camera motion: more active handheld sway and analog texture
     const swayDropX = Math.sin(tCurrent * 0.52) * 3.6 + Math.sin(tCurrent * 1.3) * 1.6;
     const swayDropY = Math.cos(tCurrent * 0.46) * 3.0 + Math.cos(tCurrent * 1.15) * 1.4;
     const jitterDropX = (Math.sin(tCurrent * 14.8) + Math.cos(tCurrent * 22.3)) * 0.42;
     const jitterDropY = (Math.cos(tCurrent * 16.4) + Math.sin(tCurrent * 20.8)) * 0.42;
     const rotDrop = Math.sin(tCurrent * 0.35) * 0.0016 + Math.cos(tCurrent * 8.5) * 0.0003;
 
-    // Blend between slow non-drop float and active post-drop handheld
     const swayX = swayIntroX * (1 - dropBlend) + swayDropX * dropBlend;
     const swayY = swayIntroY * (1 - dropBlend) + swayDropY * dropBlend;
     const jitterX = jitterIntroX * (1 - dropBlend) + jitterDropX * dropBlend;
@@ -1000,16 +953,13 @@ renderFrame(tCurrent, activeVideoFrame = null) {
     let tensionY = 0;
     let tensionRot = 0;
 
-    // Smooth building camera shake & upward screen lift right before the drop
     if (isLifting) {
-      const tension = Math.pow(pLift, 2.8); // builds gently at first, then rapid tension
+      const tension = Math.pow(pLift, 2.8);
       tensionX = (Math.sin(tCurrent * 42) * 2.4 + Math.cos(tCurrent * 68) * 1.6) * tension * 7.0;
-      // Subtle upward lift at start (-pLift * 10), then strong upward pull (-liftEase * 72)
       tensionY = -(pLift * 10 + liftEase * 72) + (Math.cos(tCurrent * 46) * 2.8 + Math.sin(tCurrent * 76) * 1.8) * tension * 7.0;
       tensionRot = Math.sin(tCurrent * 32) * 0.0038 * tension;
     }
 
-    // Crisp drop impact punch shake that decays smoothly in ~380ms
     let impactX = 0;
     let impactY = 0;
     if (isPostDrop && dropAge >= 0 && dropAge < 0.38) {
@@ -1018,7 +968,7 @@ renderFrame(tCurrent, activeVideoFrame = null) {
       impactY = Math.cos(dropAge * 74) * 7.5 * punch;
     }
 
-    // Camera motion: ease smoothly into the exact initial camera state at t = 0 (zero pixel snap)
+    // ease back to the t=0 camera state during loop turnaround
     const cam0 = this._getInitialCameraState(motionMult);
     camX = (swayX + jitterX + tensionX + impactX) * motionMult;
     camY = (swayY + jitterY + tensionY + impactY) * motionMult;
@@ -1027,15 +977,14 @@ renderFrame(tCurrent, activeVideoFrame = null) {
     const loopInfo = this._getLoopTransitionInfo(tCurrent);
     if (loopInfo.inTransition) {
       const p = loopInfo.progress;
-      const easeP = p * p * (3 - 2 * p); // smooth hermite ease
+      const easeP = p * p * (3 - 2 * p);
       camX = camX * (1 - easeP) + cam0.x * easeP;
       camY = camY * (1 - easeP) + cam0.y * easeP;
       camRot = camRot * (1 - easeP) + cam0.rot * easeP;
     }
   }
 
-  // 2. Base Canvas Background (Time of Day Sky Palette)
-  // Seamless sky blend: at t -> duration, smoothly returns to intro night sky colors
+  // sky gradient background
   const loopInfo = this._getLoopTransitionInfo(tCurrent);
   const loopFade = loopInfo.loopFade;
   const postDropBlend = isPostDrop ? loopFade : 0;
@@ -1050,50 +999,37 @@ renderFrame(tCurrent, activeVideoFrame = null) {
   ctx.fillRect(0, 0, W, H);
 
   ctx.save();
-  // Apply camera sway/shake transform to stage elements
   if (motionMult > 0.01) {
     ctx.translate(W * 0.5 + camX, H * 0.5 + camY);
     ctx.rotate(camRot);
     ctx.translate(-W * 0.5, -H * 0.5);
   }
 
-  // 2b. Pre-Drop Background Motion Blur Warp Lines (hyper-drive whole screen upward rush)
   if (pLift > 0.005) {
     this._drawBackgroundMotionBlurWarp(ctx, tCurrent, pLift, liftEase, bloom);
   }
 
-  // 3. Ambient Background Twinkling Stars
   this._drawAmbientNightStars(ctx, tCurrent, isPostDrop, energy, loopFade, pLift, liftEase);
 
-  // 3b. Pre-Drop Infinitely Streaming Warp Sparkles (ascending with vertical motion blur)
   if (pLift > 0.005) {
     this._drawPreDropWarpSparkles(ctx, tCurrent, pLift, liftEase, bloom);
   }
 
-  // 4. Melancholic Anime Scenery Layer (softly blending down into transparent piano roll)
   if (isPostDrop && activeVideoFrame) {
     this._drawAnimeDropLayer(ctx, activeVideoFrame, dropAge, energy, loopFade);
   }
 
-  // 5. Post-Drop Celestial Nebula Glow (in front of video with additive warmth)
   if (isPostDrop) {
     this._drawNebulaAndStardust(ctx, tCurrent, dropAge, energy, bloom, loopFade);
-  }
-
-  // 6. Radiant Shooting Stars (in front of the video!)
-  if (isPostDrop) {
     this._drawShootingStars(ctx, dropAge, bloom, loopFade);
   }
 
-  // 9. Visible MIDI Stars with Warm Bloom & Pre-Drop Swoosh Lift-off
   this._drawConstellationsAndStars(ctx, tCurrent, isPostDrop, dropAge, energy, bloom, loopFade);
 
-  // 10. Drop "Explosion of Prettiness" Luminous Shockwave Flash
   if (isPostDrop && dropAge >= 0 && dropAge < 2.2) {
     this._drawDropExplosionFlash(ctx, dropAge, bloom);
   }
 
-  // 10b. Dynamic Chord Change / Impact Camera Lens Flare
   if (isPostDrop && dropAge >= 0.2) {
     const cutInfo = this._getRecentCutInfo(tCurrent);
     if (cutInfo) {
@@ -1103,10 +1039,7 @@ renderFrame(tCurrent, activeVideoFrame = null) {
 
   ctx.restore();
 
-  // 8. Bottom Blended Liquid Glass Piano Roll (Seamlessly over the background)
   this._drawPianoRoll(ctx, tCurrent, isPostDrop, energy);
-
-  // 8b. Track info stack centered directly above the piano roll (title over key/bpm, subtle artist underneath)
   this._drawTrackInfoAbovePianoRoll(ctx, isPostDrop, postDropBlend);
 }
 
@@ -1135,9 +1068,8 @@ detectClipFocalPoint(videoEl) {
       for (let x = 0; x < w; x++) {
         const idx = rowStart + x * 4;
         const r = d[idx], g = d[idx + 1], b = d[idx + 2];
-        // Warm anime skin tone profile: R > G > B with warm blush/peach saturation
+        // warm skin tone and high-frequency edge contrast heuristics
         const isSkin = (r > 115 && g > 85 && b > 65 && r > g && g > b && (r - b) > 20 && (r - g) > 10 && (r - g) < 75);
-        // High-frequency ink line / silhouette edge contrast
         let edge = 0;
         if (x > 0 && x < w - 1) {
           edge = Math.abs(d[idx + 4] - d[idx - 4]);
@@ -1147,7 +1079,7 @@ detectClipFocalPoint(videoEl) {
       }
     }
 
-    // Find 9:16 aspect window (width ~ 51px) with the highest subject density
+    // find 9:16 aspect window with highest subject density
     const winW = Math.round(h * (9 / 16));
     let bestSum = 0;
     let bestX = Math.round((w - winW) * 0.5);
@@ -1163,7 +1095,6 @@ detectClipFocalPoint(videoEl) {
       }
     }
 
-    // Map to normalized focus anchor clamped between 0.18 and 0.82
     const focalX = Math.max(0.18, Math.min(0.82, (bestX + winW * 0.5) / w));
     if (bestSum > 80) {
       videoEl._focalX = focalX;
@@ -1182,35 +1113,27 @@ _drawAnimeDropLayer(ctx, videoEl, dropAge, energy, loopFade = 1.0) {
   ctx.save();
 
   const dur = this.project?.duration || 30.0;
-  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
-    ? this.project.dropTime
-    : (dur * 0.5);
+  const dropTime = this.getDropTime();
   const tCurrent = dropAge + dropTime;
 
-  // Subtle drop glitch transition window (first 200ms at drop point)
   const hasGlitch = this.params.dropGlitch !== false && dropAge >= 0 && dropAge < 0.20;
   const glitchEnv = hasGlitch ? Math.pow(Math.max(0, 1 - dropAge / 0.20), 2.2) : 0;
 
-  // Snappy glitch-out transition during early half of the loop transition window
   const loopInfo = this._getLoopTransitionInfo(tCurrent);
   const glitchOutDur = Math.min(0.55, (loopInfo.loopWin || 0.85) * 0.65);
   const timeUntilLoop = Math.max(0, dur - tCurrent);
   const hasGlitchOut = this.params.dropGlitch !== false && timeUntilLoop < glitchOutDur && loopInfo.inTransition;
   const glitchOutProgress = hasGlitchOut ? Math.max(0, Math.min(1.0, 1.0 - timeUntilLoop / glitchOutDur)) : 0;
-  // Glitch envelope peaks in the middle and completely decays to 0 before the final frames
   const glitchOutEnv = hasGlitchOut
     ? (glitchOutProgress < 0.45
         ? Math.pow(glitchOutProgress / 0.45, 1.2)
         : Math.pow(Math.max(0, 1.0 - (glitchOutProgress - 0.45) / 0.55), 1.6))
     : 0;
 
-  // Smooth reveal curve at drop and seamless loop dissolve at the end
-  // When glitch is active, the frame punches through immediately without feeling sluggish
   const revealFactor = hasGlitch
     ? Math.min(1, 0.62 + (1 - glitchEnv) * 0.38 + dropAge * 1.2)
     : Math.min(1, 0.35 + dropAge * 1.4);
 
-  // Clip fade completely reaches 0 by p = 0.70 of loop window (before seam)
   const effectiveFade = loopInfo.clipFade;
   const targetAlpha = this.params.animeOpacity * revealFactor * (0.88 + energy * 0.16) * effectiveFade;
   if (targetAlpha <= 0.005) {
@@ -1219,11 +1142,9 @@ _drawAnimeDropLayer(ctx, videoEl, dropAge, energy, loopFade = 1.0) {
   }
   ctx.globalAlpha = Math.max(0, Math.min(0.95, targetAlpha));
 
-  // Speed ramp calculation & dynamic zoom punch into cuts
   const ramp = this.getSpeedRampInfo(tCurrent);
   const rampZoom = ramp.isRamping ? ramp.rampFactor * 0.045 : 0;
 
-  // Cover-fit video across the entire frame with gentle slow cinematic zoom & dynamic speed ramp punch
   const glitchPunch = (hasGlitch && dropAge < 0.08 ? 0.015 * Math.pow(1 - dropAge / 0.08, 2.0) : 0)
     + (hasGlitchOut ? 0.018 * Math.pow(glitchOutProgress, 2.0) : 0);
   const zoom = 1.02 + Math.sin(dropAge * 0.22) * 0.02 + rampZoom;
@@ -1231,7 +1152,6 @@ _drawAnimeDropLayer(ctx, videoEl, dropAge, energy, loopFade = 1.0) {
   const drawW = vw * scale * (1 + glitchPunch);
   const drawH = vh * scale;
 
-  // Smart Auto-Framing: centers characters & key subjects within 9:16 vertical crop
   let targetFocalX = 0.5;
   if (this.params.autoFrame !== false) {
     if (videoEl.dataset && videoEl.dataset.manualFocalX) {
@@ -1240,7 +1160,6 @@ _drawAnimeDropLayer(ctx, videoEl, dropAge, energy, loopFade = 1.0) {
       targetFocalX = this.detectClipFocalPoint(videoEl);
     }
   }
-  // Smoothly ease focal point to prevent jerky camera jumps between cuts
   videoEl._curFocalX = videoEl._curFocalX === undefined
     ? targetFocalX
     : videoEl._curFocalX + (targetFocalX - videoEl._curFocalX) * 0.15;
@@ -1254,22 +1173,18 @@ _drawAnimeDropLayer(ctx, videoEl, dropAge, energy, loopFade = 1.0) {
 
   ctx.drawImage(videoEl, drawX, drawY, drawW, drawH);
 
-  // Subtle drop glitch-in effect (scanline band jitter, chromatic split, and neon scanlines)
   if (hasGlitch && glitchEnv > 0.005) {
     this._drawDropGlitchIn(ctx, videoEl, dropAge, glitchEnv, drawX, drawY, drawW, drawH, vw, vh);
   }
 
-  // Snappy glitch-out effect at reel loop end
   if (hasGlitchOut && glitchOutEnv > 0.005) {
     this._drawDropGlitchOut(ctx, videoEl, glitchOutProgress, glitchOutEnv, drawX, drawY, drawW, drawH, vw, vh);
   }
 
-  // Speed ramp horizontal starlight whip streaks across video during transition
   if (ramp.isRamping && ramp.rampFactor > 0.25) {
     this._drawSpeedRampWhipLines(ctx, ramp.rampFactor, this.params.bloomIntensity);
   }
 
-  // Soft atmospheric vignette at top canvas edge
   ctx.globalAlpha = 1;
   const vigTop = ctx.createLinearGradient(0, 0, 0, 90);
   vigTop.addColorStop(0, 'rgba(5, 7, 13, 0.42)');
@@ -1277,7 +1192,6 @@ _drawAnimeDropLayer(ctx, videoEl, dropAge, energy, loopFade = 1.0) {
   ctx.fillStyle = vigTop;
   ctx.fillRect(0, 0, this.width, 90);
 
-  // Soft celestial indigo tint across video
   ctx.fillStyle = 'rgba(10, 16, 32, 0.16)';
   ctx.fillRect(0, 0, this.width, this.height);
 
@@ -1287,10 +1201,8 @@ _drawAnimeDropLayer(ctx, videoEl, dropAge, energy, loopFade = 1.0) {
 _drawDropGlitchIn(ctx, videoEl, dropAge, glitchEnv, drawX, drawY, drawW, drawH, vw, vh) {
   if (glitchEnv <= 0.005) return;
 
-  // Discretize into snappy frame steps (~45fps quantization) for authentic CRT/digital bite
   const glitchStep = Math.floor(dropAge * 45);
 
-  // 1. Full-frame RGB chromatic split ghosting during the first 90ms of entry
   if (dropAge < 0.09) {
     const rgbEnv = Math.pow(1 - dropAge / 0.09, 1.8);
     const shiftX = (4.5 + this._hash(glitchStep * 7.1) * 3.5) * rgbEnv;
@@ -1302,12 +1214,11 @@ _drawDropGlitchIn(ctx, videoEl, dropAge, glitchEnv, drawX, drawY, drawW, drawH, 
     ctx.restore();
   }
 
-  // 2. Horizontal slice jitter (3-5 horizontal bands displaced horizontally)
   const sliceCount = 4;
   for (let i = 0; i < sliceCount; i++) {
     const seed = glitchStep * 23.3 + i * 17.1;
     const normY = ((this._hash(seed + 0.3) * 0.75) + i * 0.2 + 0.04) % 0.86;
-    const normH = 0.025 + this._hash(seed + 1.9) * 0.065; // ~2.5% to 9% height
+    const normH = 0.025 + this._hash(seed + 1.9) * 0.065;
     const dir = (i % 2 === 0) ? 1 : -1;
     const jitterX = dir * (5 + this._hash(seed + 3.7) * 14) * glitchEnv;
 
@@ -1316,38 +1227,30 @@ _drawDropGlitchIn(ctx, videoEl, dropAge, glitchEnv, drawX, drawY, drawW, drawH, 
     const dy = drawY + normY * drawH;
     const dh = normH * drawH;
 
-    // Draw displaced video slice
     ctx.drawImage(videoEl, 0, sy, vw, sh, drawX + jitterX, dy, drawW, dh);
 
-    // Subtle cyan/magenta fringe along displaced horizontal band edges
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     const fringeAlpha = (0.24 * glitchEnv).toFixed(3);
-    // Left edge cyan fringe
     ctx.fillStyle = `rgba(0, 240, 255, ${fringeAlpha})`;
     ctx.fillRect(drawX + jitterX - 2, dy, 5, dh);
-    // Right edge magenta fringe
     ctx.fillStyle = `rgba(255, 45, 120, ${fringeAlpha})`;
     ctx.fillRect(drawX + jitterX + drawW - 3, dy, 5, dh);
     ctx.restore();
   }
 
-  // 3. High-frequency digital scanline flickers
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   const scanSeed = glitchStep * 41.3;
   const y1 = drawY + ((this._hash(scanSeed) * 0.88 + 0.06) % 0.94) * drawH;
   const y2 = drawY + ((this._hash(scanSeed + 8.9) * 0.85 + 0.08) % 0.92) * drawH;
 
-  // Cyan/white luminous scanline
   ctx.fillStyle = `rgba(200, 245, 255, ${(0.38 * glitchEnv).toFixed(3)})`;
   ctx.fillRect(0, y1, this.width, 1.8);
 
-  // Soft violet scanline
   ctx.fillStyle = `rgba(225, 185, 255, ${(0.28 * glitchEnv).toFixed(3)})`;
   ctx.fillRect(0, y2, this.width, 2.2);
 
-  // Micro flash band (semi-transparent horizontal strip)
   if (dropAge < 0.12) {
     const bandY = drawY + (this._hash(scanSeed + 14.5) * 0.7 + 0.15) * drawH;
     const bandH = 8 + this._hash(scanSeed + 22.1) * 24;
@@ -1360,10 +1263,8 @@ _drawDropGlitchIn(ctx, videoEl, dropAge, glitchEnv, drawX, drawY, drawW, drawH, 
 _drawDropGlitchOut(ctx, videoEl, glitchProgress, glitchEnv, drawX, drawY, drawW, drawH, vw, vh) {
   if (glitchEnv <= 0.005) return;
 
-  // Discretize into snappy frame steps (~45fps quantization) for digital glitch bite
   const glitchStep = Math.floor(glitchProgress * 45);
 
-  // 1. Full-frame RGB chromatic split ghosting (expands as glitch escalates)
   const rgbEnv = Math.pow(glitchProgress, 1.2);
   const shiftX = (6.0 + this._hash(glitchStep * 9.3) * 6.0) * rgbEnv;
   ctx.save();
@@ -1373,12 +1274,11 @@ _drawDropGlitchOut(ctx, videoEl, glitchProgress, glitchEnv, drawX, drawY, drawW,
   ctx.drawImage(videoEl, drawX - shiftX, drawY, drawW, drawH);
   ctx.restore();
 
-  // 2. Horizontal slice jitter (5 horizontal bands displaced horizontally)
   const sliceCount = 5;
   for (let i = 0; i < sliceCount; i++) {
     const seed = glitchStep * 29.7 + i * 19.3;
     const normY = ((this._hash(seed + 0.5) * 0.78) + i * 0.18 + 0.02) % 0.88;
-    const normH = 0.03 + this._hash(seed + 2.1) * 0.08; // ~3% to 11% height
+    const normH = 0.03 + this._hash(seed + 2.1) * 0.08;
     const dir = (i % 2 === 0) ? 1 : -1;
     const jitterX = dir * (8 + this._hash(seed + 4.1) * 18) * glitchEnv;
 
@@ -1387,47 +1287,39 @@ _drawDropGlitchOut(ctx, videoEl, glitchProgress, glitchEnv, drawX, drawY, drawW,
     const dy = drawY + normY * drawH;
     const dh = normH * drawH;
 
-    // Draw displaced video slice
     ctx.drawImage(videoEl, 0, sy, vw, sh, drawX + jitterX, dy, drawW, dh);
 
-    // Subtle cyan/magenta fringe along displaced horizontal band edges
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     const fringeAlpha = (0.32 * glitchEnv).toFixed(3);
-    // Left edge cyan fringe
     ctx.fillStyle = `rgba(0, 240, 255, ${fringeAlpha})`;
     ctx.fillRect(drawX + jitterX - 3, dy, 6, dh);
-    // Right edge magenta fringe
     ctx.fillStyle = `rgba(255, 45, 120, ${fringeAlpha})`;
     ctx.fillRect(drawX + jitterX + drawW - 3, dy, 6, dh);
     ctx.restore();
   }
 
-  // 3. Digital scanline flickers & micro flash band
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   const scanSeed = glitchStep * 37.1;
   const y1 = drawY + ((this._hash(scanSeed) * 0.88 + 0.06) % 0.94) * drawH;
   const y2 = drawY + ((this._hash(scanSeed + 9.7) * 0.85 + 0.08) % 0.92) * drawH;
 
-  // Cyan/white luminous scanline
   ctx.fillStyle = `rgba(200, 245, 255, ${(0.42 * glitchEnv).toFixed(3)})`;
   ctx.fillRect(0, y1, this.width, 2.0);
 
-  // Soft violet scanline
   ctx.fillStyle = `rgba(225, 185, 255, ${(0.32 * glitchEnv).toFixed(3)})`;
   ctx.fillRect(0, y2, this.width, 2.5);
 
-    // Micro flash band: peaks smoothly in middle of glitch, cleanly resolves to 0 before loop seam
-    if (glitchProgress > 0.25 && glitchProgress < 0.85) {
-      const bandPhase = Math.sin(((glitchProgress - 0.25) / 0.60) * Math.PI);
-      const bandY = drawY + (this._hash(scanSeed + 17.3) * 0.68 + 0.16) * drawH;
-      const bandH = 10 + this._hash(scanSeed + 25.1) * 28;
-      ctx.fillStyle = `rgba(255, 255, 255, ${(0.14 * bandPhase * glitchEnv).toFixed(3)})`;
-      ctx.fillRect(0, bandY, this.width, bandH);
-    }
-    ctx.restore();
+  if (glitchProgress > 0.25 && glitchProgress < 0.85) {
+    const bandPhase = Math.sin(((glitchProgress - 0.25) / 0.60) * Math.PI);
+    const bandY = drawY + (this._hash(scanSeed + 17.3) * 0.68 + 0.16) * drawH;
+    const bandH = 10 + this._hash(scanSeed + 25.1) * 28;
+    ctx.fillStyle = `rgba(255, 255, 255, ${(0.14 * bandPhase * glitchEnv).toFixed(3)})`;
+    ctx.fillRect(0, bandY, this.width, bandH);
   }
+  ctx.restore();
+}
 
 _drawSpeedRampWhipLines(ctx, rampFactor, bloom) {
   if (rampFactor < 0.25) return;
@@ -1506,24 +1398,19 @@ getSpeedRampInfo(t) {
   const elapsed = Math.max(0, t - interval.start);
   const D = Math.max(0.5, interval.end - interval.start);
 
-  // Slower, more eased transition ramp duration (~0.72s, up to 40% of the cut)
   const rampDur = Math.min(0.72, D * 0.40);
-
-  // Cinematic slow motion in the middle between clips (0.48x speed)
   const Sbase = 0.48;
-  // Fast whip acceleration into and out of cuts (2.85x speed)
   const Smax = 2.85;
   const Sdiff = Smax - Sbase;
 
-  // Composite easing curve: slower movement for longer at the start, then rapid whip acceleration
+  // composite easing curve: slow middle cruise (0.48x), fast whip into/out of cuts (2.85x)
   const c1 = 0.28;
-  const c2 = 0.72; // c1 + c2 === 1.0
+  const c2 = 0.72;
   const areaCoeff = c1 / 3 + c2 / 5;
   const entryArea = Sbase * rampDur + Sdiff * rampDur * areaCoeff;
 
   if (elapsed <= rampDur) {
-    // Entry phase: decelerating out of the cut from Smax down into Sbase (slow-mo)
-    const p = (rampDur - elapsed) / rampDur; // 1 -> 0
+    const p = (rampDur - elapsed) / rampDur;
     const ease = c1 * Math.pow(p, 2) + c2 * Math.pow(p, 4);
     const instSpeed = Sbase + Sdiff * ease;
 
@@ -1533,13 +1420,11 @@ getSpeedRampInfo(t) {
 
     return { clipTime, instSpeed, rampFactor: ease, isRamping: true, phase: 'in' };
   } else if (elapsed <= D - rampDur) {
-    // Cruising phase: steady dreamy cinematic slow-motion between the clips
     const clipTime = entryArea + Sbase * (elapsed - rampDur);
     return { clipTime, instSpeed: Sbase, rampFactor: 0, isRamping: false, phase: 'cruise' };
   } else {
-    // Exit phase: slowly easing out of slow-mo, then rapidly accelerating up to Smax into next cut
-    const u = elapsed - (D - rampDur); // 0 -> rampDur
-    const p = u / rampDur; // 0 -> 1
+    const u = elapsed - (D - rampDur);
+    const p = u / rampDur;
     const ease = c1 * Math.pow(p, 2) + c2 * Math.pow(p, 4);
     const instSpeed = Sbase + Sdiff * ease;
 
@@ -1555,16 +1440,12 @@ _drawBackgroundMotionBlurWarp(ctx, t, pLift, liftEase, bloom) {
   if (liftEase <= 0.005) return;
   ctx.save();
   const H = this.height;
-  const dur = this.project?.duration || 30.0;
-  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
-    ? this.project.dropTime
-    : (dur * 0.5);
+  const dropTime = this.getDropTime();
   const preDropDur = this.params?.preDropDuration || 2.2;
   const dt = Math.max(0, t - (dropTime - preDropDur));
   const warpStreakLen = Math.min(540, 24 + liftEase * 440 + Math.pow(pLift, 2.5) * 80);
 
   for (const line of this.bgWarpLines) {
-    // Slower subtle float at first (dt * 0.4) then massive upward surge (liftEase * H * 1.4)
     const dist = line.speed * dt * 0.4 + liftEase * (H * 1.4);
     const curY = ((line.y0 - dist) % H + H) % H;
 
@@ -1594,9 +1475,7 @@ _drawAmbientNightStars(ctx, t, isPostDrop, energy, loopFade = 1.0, pLift = 0, li
   ctx.save();
   const H = this.height;
   const isLifting = liftEase > 0.002 || pLift > 0.01;
-  // Starts subtly drifting up (pLift * 36px), then rockets up during rapid zoosh (liftEase * H * 1.35)
   const liftDist = isLifting ? (pLift * 36 + liftEase * (H * 1.35)) : 0;
-  // Motion blur streaks only stretch noticeably during the rapid zoosh phase
   const streakLen = isLifting ? Math.min(240, liftEase * 220 + Math.pow(pLift, 3.2) * 50) : 0;
 
   const dayInvert = this._getDayInvertFactor(t);
@@ -1620,7 +1499,6 @@ _drawAmbientNightStars(ctx, t, isPostDrop, energy, loopFade = 1.0, pLift = 0, li
       : s.y;
 
     if (isLifting && streakLen > 2.0) {
-      // Vertical motion blur trail stretching downward from rising star head
       const streakGrad = ctx.createLinearGradient(s.x, starY, s.x, starY + streakLen);
       streakGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${Math.min(1, alpha * 0.95).toFixed(3)})`);
       streakGrad.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, ${(alpha * 0.45).toFixed(3)})`);
@@ -1645,18 +1523,13 @@ _drawPreDropWarpSparkles(ctx, t, pLift, liftEase, bloom) {
   if (pLift <= 0.005) return;
   ctx.save();
   const H = this.height;
-  const dur = this.project?.duration || 30.0;
-  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
-    ? this.project.dropTime
-    : (dur * 0.5);
+  const dropTime = this.getDropTime();
   const preDropDur = this.params?.preDropDuration || 2.2;
   const dt = Math.max(0, t - (dropTime - preDropDur));
   const inWindowFade = Math.min(1.0, pLift * 2.2);
 
   for (const sp of this.preDropSparkles) {
-    // Early subtle upward drift (sp.speed * dt * 0.38) + rapid zoosh boost (liftEase * H * 1.45)
     const dist = sp.speed * dt * 0.38 + liftEase * (H * 1.45);
-    // Seamless infinite vertical wrapping
     const curY = ((sp.y0 - dist) % H + H) % H;
     const curX = sp.x0 + Math.sin(t * 3.6 + sp.phase) * (sp.driftX * 0.4 + liftEase * 12);
 
@@ -1664,7 +1537,6 @@ _drawPreDropWarpSparkles(ctx, t, pLift, liftEase, bloom) {
     const alpha = inWindowFade * twinkle * Math.min(1.0, 0.38 + liftEase * 0.62);
     if (alpha <= 0.01) continue;
 
-    // Vertical motion blur: starts as compact sparkling dots (6px), stretching into warp streaks as zoosh kicks in
     const streakLen = Math.max(6, 6 + liftEase * 210 + Math.pow(pLift, 3.2) * 40);
 
     const r0 = Math.round(210 + sp.warmth * 45);
@@ -1679,7 +1551,6 @@ _drawPreDropWarpSparkles(ctx, t, pLift, liftEase, bloom) {
     const coreG = Math.round(255 * (1 - dayInvert) + 32 * dayInvert);
     const coreB = Math.round(255 * (1 - dayInvert) + 58 * dayInvert);
 
-    // 1. Motion blur gradient streak
     const grad = ctx.createLinearGradient(curX, curY, curX, curY + streakLen);
     grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${(alpha * 0.95).toFixed(3)})`);
     grad.addColorStop(0.28, `rgba(${r}, ${g}, ${b}, ${(alpha * 0.45).toFixed(3)})`);
@@ -1692,7 +1563,6 @@ _drawPreDropWarpSparkles(ctx, t, pLift, liftEase, bloom) {
     ctx.lineTo(curX, curY + streakLen);
     ctx.stroke();
 
-    // 2. Soft starlight aura on particle head
     const auraR = sp.size * (2.8 + liftEase * 2.4);
     const auraGrad = ctx.createRadialGradient(curX, curY, 0, curX, curY, auraR);
     auraGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${(alpha * 0.48).toFixed(3)})`);
@@ -1702,13 +1572,11 @@ _drawPreDropWarpSparkles(ctx, t, pLift, liftEase, bloom) {
     ctx.arc(curX, curY, auraR, 0, Math.PI * 2);
     ctx.fill();
 
-    // 3. Crisp center pinpoint
     ctx.fillStyle = `rgba(${coreR}, ${coreG}, ${coreB}, ${Math.min(1.0, alpha * 1.15).toFixed(3)})`;
     ctx.beginPath();
     ctx.arc(curX, curY, sp.size * (0.8 + liftEase * 0.4), 0, Math.PI * 2);
     ctx.fill();
 
-    // 4. Subtle 4-point cross-glint on larger radiant sparkles
     if (sp.size > 2.2 && alpha > 0.45) {
       const glintLen = sp.size * (3.5 + liftEase * 3.0);
       ctx.strokeStyle = `rgba(${coreR}, ${coreG}, ${coreB}, ${(alpha * 0.65).toFixed(3)})`;
@@ -1728,7 +1596,6 @@ _drawNebulaAndStardust(ctx, t, dropAge, energy, bloom, loopFade = 1.0) {
   if (loopFade <= 0.005) return;
   ctx.save();
 
-  // Soft audio-reactive celestial nebula glow
   const nebRadius = (380 + energy * 200) * (0.75 + bloom * 0.5);
   const nebGrad = ctx.createRadialGradient(
     this.skyCenterX,
@@ -1745,7 +1612,6 @@ _drawNebulaAndStardust(ctx, t, dropAge, energy, bloom, loopFade = 1.0) {
   ctx.fillStyle = nebGrad;
   ctx.fillRect(0, 0, this.width, this.height);
 
-  // Rising luminous stardust particles
   for (const m of this.stardust) {
     const x = ((m.x0 + m.vx * dropAge) % this.width + this.width) % this.width;
     const rawY = m.y0 + m.vy * dropAge;
@@ -1768,7 +1634,6 @@ _drawNebulaAndStardust(ctx, t, dropAge, energy, bloom, loopFade = 1.0) {
 _drawShootingStars(ctx, dropAge, bloom, loopFade = 1.0) {
   if (dropAge < 0.6 || loopFade <= 0.005) return;
 
-  // Shooting stars appear gracefully every ~4.5 seconds after the drop
   const baseInterval = 4.5;
   const currentEventIdx = Math.floor(dropAge / baseInterval);
 
@@ -1783,7 +1648,6 @@ _drawShootingStars(ctx, dropAge, bloom, loopFade = 1.0) {
 
     if (progress < 0 || progress > 1) continue;
 
-    // Smooth opacity curve: gradual ignite, peak mid-streak, smooth fade
     const alphaEnvelope =
       progress < 0.22
         ? progress / 0.22
@@ -1815,7 +1679,6 @@ _drawShootingStars(ctx, dropAge, bloom, loopFade = 1.0) {
 
     ctx.save();
 
-    // Warm luminous gradient trail
     const trailGrad = ctx.createLinearGradient(headX, headY, tailX, tailY);
     const warmth = h2;
     const r = Math.round(252 + warmth * 3);
@@ -1834,7 +1697,6 @@ _drawShootingStars(ctx, dropAge, bloom, loopFade = 1.0) {
     ctx.lineTo(headX, headY);
     ctx.stroke();
 
-    // Thin bright core
     ctx.strokeStyle = `rgba(255, 255, 255, ${(alpha * 0.95).toFixed(3)})`;
     ctx.lineWidth = 1.0;
     ctx.beginPath();
@@ -1842,7 +1704,6 @@ _drawShootingStars(ctx, dropAge, bloom, loopFade = 1.0) {
     ctx.lineTo(headX, headY);
     ctx.stroke();
 
-    // Radiant head glow
     const headGlowR = (10 + h1 * 6) * (0.8 + bloom * 0.4);
     const headGrad = ctx.createRadialGradient(headX, headY, 0, headX, headY, headGlowR);
     headGrad.addColorStop(0, `rgba(255, 255, 255, ${alpha.toFixed(3)})`);
@@ -1854,7 +1715,6 @@ _drawShootingStars(ctx, dropAge, bloom, loopFade = 1.0) {
     ctx.arc(headX, headY, headGlowR, 0, Math.PI * 2);
     ctx.fill();
 
-    // Sharp pinpoint star center
     ctx.fillStyle = `rgba(255, 255, 255, ${alpha.toFixed(3)})`;
     ctx.beginPath();
     ctx.arc(headX, headY, 1.8, 0, Math.PI * 2);
@@ -1879,14 +1739,11 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
   ctx.save();
   ctx.lineCap = 'round';
 
-  // When anime clip plays after the drop, stars fade softly into the background
-  // During loop outro, all post-drop constellation stars smoothly fade out with loopFade
-  // so the night sky returns cleanly to the pristine intro state (0 post-drop stars)
   const postDropDim = isPostDrop ? Math.max(0.36, 1.0 - Math.min(1.0, dropAge * 0.7) * 0.64) : 1.0;
   const postDropFade = isPostDrop ? (postDropDim * loopFade) : 1.0;
   const postDropScale = isPostDrop ? 0.78 : 1.0;
 
-  // 1. Constellation Connection Lines: between main stars (low & mid tiers, plus small chance for top stars)
+  // constellation link lines
   for (let i = 0; i < visibleStars.length; i++) {
     const a = visibleStars[i];
     if (!a.seed.canLink) continue;
@@ -1902,177 +1759,165 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
       const dy = a.y - b.y;
       const dist = Math.hypot(dx, dy);
 
-        if (dist > 45 && dist < maxDist) {
-          const distFactor = 1 - dist / maxDist;
-          const hasTopStar = isTopA || b.seed.tier === 'high';
-          const pairAlpha =
-            Math.min(a.alpha, b.alpha) *
-            distFactor *
-            postDropFade *
-            (isPostDrop ? 0.52 : 0.65) *
-            (hasTopStar ? 0.68 : 1.0);
+      if (dist > 45 && dist < maxDist) {
+        const distFactor = 1 - dist / maxDist;
+        const hasTopStar = isTopA || b.seed.tier === 'high';
+        const pairAlpha =
+          Math.min(a.alpha, b.alpha) *
+          distFactor *
+          postDropFade *
+          (isPostDrop ? 0.52 : 0.65) *
+          (hasTopStar ? 0.68 : 1.0);
 
-          if (pairAlpha > 0.02) {
-            const avgR = Math.round((a.seed.colorR + b.seed.colorR) * 0.5);
-            const avgG = Math.round((a.seed.colorG + b.seed.colorG) * 0.5);
-            const avgB = Math.round((a.seed.colorB + b.seed.colorB) * 0.5);
+        if (pairAlpha > 0.02) {
+          const avgR = Math.round((a.seed.colorR + b.seed.colorR) * 0.5);
+          const avgG = Math.round((a.seed.colorG + b.seed.colorG) * 0.5);
+          const avgB = Math.round((a.seed.colorB + b.seed.colorB) * 0.5);
 
-            const lineR = Math.round(avgR * (1 - dayInvert) + 38 * dayInvert);
-            const lineG = Math.round(avgG * (1 - dayInvert) + 68 * dayInvert);
-            const lineB = Math.round(avgB * (1 - dayInvert) + 128 * dayInvert);
-            const lineAlpha = (pairAlpha * (1 + 0.35 * dayInvert)).toFixed(3);
+          const lineR = Math.round(avgR * (1 - dayInvert) + 38 * dayInvert);
+          const lineG = Math.round(avgG * (1 - dayInvert) + 68 * dayInvert);
+          const lineB = Math.round(avgB * (1 - dayInvert) + 128 * dayInvert);
+          const lineAlpha = (pairAlpha * (1 + 0.35 * dayInvert)).toFixed(3);
 
-            ctx.strokeStyle = `rgba(${lineR}, ${lineG}, ${lineB}, ${lineAlpha})`;
-            ctx.lineWidth = (1.1 * distFactor + 0.3) * (hasTopStar ? 0.75 : 1.0);
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y);
-            ctx.lineTo(b.x, b.y);
-            ctx.stroke();
-
-            linksDrawn++;
-            if (linksDrawn >= maxLinksForA) break;
-          }
-        }
-      }
-    }
-
-    // 2. Render Stars according to their 3 tiers
-    for (const st of visibleStars) {
-      const { seed, x, y, alpha, flare } = st;
-      const sR = Math.round(seed.colorR * (1 - dayInvert) + 36 * dayInvert);
-      const sG = Math.round(seed.colorG * (1 - dayInvert) + 66 * dayInvert);
-      const sB = Math.round(seed.colorB * (1 - dayInvert) + 124 * dayInvert);
-      const coreR = Math.round(255 * (1 - dayInvert) + 18 * dayInvert);
-      const coreG = Math.round(255 * (1 - dayInvert) + 32 * dayInvert);
-      const coreB = Math.round(255 * (1 - dayInvert) + 58 * dayInvert);
-      const effAlpha = alpha * postDropFade;
-
-      // Pre-drop upward motion streaks when accelerating into the swoosh
-      if (st.isLifting && st.streakStretch > 1.08) {
-        const trailH = Math.min(320, (st.streakStretch - 1) * 44);
-        const streakGrad = ctx.createLinearGradient(x, y, x, y + trailH);
-        streakGrad.addColorStop(0, `rgba(${sR}, ${sG}, ${sB}, ${(effAlpha * 0.95).toFixed(3)})`);
-        streakGrad.addColorStop(0.35, `rgba(${sR}, ${Math.max(0, sG - 15)}, ${sB}, ${(effAlpha * 0.45).toFixed(3)})`);
-        streakGrad.addColorStop(1, `rgba(${sR}, ${sG}, ${sB}, 0)`);
-        ctx.strokeStyle = streakGrad;
-        ctx.lineWidth = Math.max(1.2, seed.radius * 0.85);
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x, y + trailH);
-        ctx.stroke();
-      }
-
-      // Subtle suspended starlight halo for anchor stars defying gravity
-      if (seed.defiesGravity && !st.isLifting) {
-        const susR = seed.radius * (2.8 + flare * 1.2);
-        ctx.strokeStyle = `rgba(${sR}, ${sG}, ${sB}, ${(effAlpha * 0.28).toFixed(3)})`;
-        ctx.lineWidth = 0.75;
-        ctx.beginPath();
-        ctx.arc(x, y, susR, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      // Cinematic 4-Point Needle Starburst (Shinkai / Kimi no Na wa Style)
-      const baseR = seed.radius * (1.0 + flare * 0.45) * postDropScale;
-
-      // Atmospheric optical scintillation (realistic starlight shimmer)
-      const scint = 0.86 + 0.14 * Math.sin(t * 9.5 + seed.idx * 4.3);
-      const starAlpha = Math.min(1.0, effAlpha * scint);
-
-      ctx.save();
-      ctx.translate(x, y);
-      // Fixed optical camera orientation: all flares share the camera's physical horizontal/vertical aperture axes
-
-      // 1. Soft Warm Atmospheric Bloom Halo (Organic celestial haze)
-      const haloR = baseR * (seed.tier === 'low' ? 6.5 : (seed.tier === 'mid' ? 5.2 : 3.8)) * (0.85 + bloom * 0.45);
-      const haloAlpha = starAlpha * (seed.tier === 'low' ? 0.38 : (seed.tier === 'mid' ? 0.30 : 0.22)) * (0.8 + bloom * 0.35);
-
-      if (haloAlpha > 0.01) {
-        const haloGrad = ctx.createRadialGradient(0, 0, baseR * 0.3, 0, 0, haloR);
-        haloGrad.addColorStop(0, `rgba(${sR}, ${sG}, ${sB}, ${haloAlpha.toFixed(3)})`);
-        const midR = Math.min(255, sR + 25);
-        const midG = Math.max(0, sG - 15);
-        const midB = Math.max(0, sB - 35);
-        haloGrad.addColorStop(0.4, `rgba(${midR}, ${midG}, ${midB}, ${(haloAlpha * 0.45).toFixed(3)})`);
-        haloGrad.addColorStop(0.75, `rgba(${sR}, ${Math.max(0, sG - 25)}, ${Math.min(255, sB + 15)}, ${(haloAlpha * 0.12).toFixed(3)})`);
-        haloGrad.addColorStop(1, `rgba(${sR}, ${sG}, ${sB}, 0)`);
-
-        ctx.fillStyle = haloGrad;
-        ctx.beginPath();
-        ctx.arc(0, 0, haloR, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // 2. Needle-Sharp 4-Point Shinkai Starburst Rays
-      const rayLen = baseR * (seed.tier === 'low' ? (5.8 + flare * 2.8) : (seed.tier === 'mid' ? (4.4 + flare * 2.2) : (2.9 + flare * 1.5))) * (0.85 + bloom * 0.25);
-      const rayAlpha = Math.min(1.0, starAlpha * (seed.tier === 'low' ? 0.88 : 0.74) * (1.0 + flare * 0.35));
-
-      if (rayLen > 4 && rayAlpha > 0.02) {
-        const drawNeedle = (len, w, a) => {
-          const grad = ctx.createLinearGradient(0, 0, len, 0);
-          grad.addColorStop(0, `rgba(255, 255, 255, ${a.toFixed(3)})`);
-          grad.addColorStop(0.22, `rgba(${sR}, ${sG}, ${sB}, ${(a * 0.75).toFixed(3)})`);
-          grad.addColorStop(0.68, `rgba(${sR}, ${Math.max(0, sG - 15)}, ${sB}, ${(a * 0.28).toFixed(3)})`);
-          grad.addColorStop(1, `rgba(${sR}, ${sG}, ${sB}, 0)`);
-
-          ctx.fillStyle = grad;
+          ctx.strokeStyle = `rgba(${lineR}, ${lineG}, ${lineB}, ${lineAlpha})`;
+          ctx.lineWidth = (1.1 * distFactor + 0.3) * (hasTopStar ? 0.75 : 1.0);
           ctx.beginPath();
-          ctx.moveTo(0, -w * 0.5);
-          ctx.lineTo(len, 0);
-          ctx.lineTo(0, w * 0.5);
-          ctx.closePath();
-          ctx.fill();
-        };
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
 
-        const needleW = Math.max(1.0, baseR * 0.28);
-        const lenH = rayLen * 1.15;
-        const lenV = rayLen * 0.92;
-
-        // 4 Primary Needle Spikes (0°, 90°, 180°, 270°)
-        drawNeedle(lenH, needleW, rayAlpha);
-        ctx.save(); ctx.rotate(Math.PI); drawNeedle(lenH, needleW, rayAlpha); ctx.restore();
-        ctx.save(); ctx.rotate(Math.PI * 0.5); drawNeedle(lenV, needleW, rayAlpha); ctx.restore();
-        ctx.save(); ctx.rotate(-Math.PI * 0.5); drawNeedle(lenV, needleW, rayAlpha); ctx.restore();
-
-        // 3. Faint 45-Degree Secondary Glints (Celestial depth)
-        if (seed.tier !== 'high' || flare > 0.06) {
-          const diagLen = rayLen * 0.38;
-          const diagW = needleW * 0.65;
-          const diagAlpha = rayAlpha * 0.36;
-
-          for (let di = 0; di < 4; di++) {
-            ctx.save();
-            ctx.rotate(Math.PI * 0.25 + di * Math.PI * 0.5);
-            drawNeedle(diagLen, diagW, diagAlpha);
-            ctx.restore();
-          }
+          linksDrawn++;
+          if (linksDrawn >= maxLinksForA) break;
         }
       }
-
-      // 4. Glowing Radiant Core Nucleus
-      const coreRadius = Math.max(1.2, baseR * (seed.tier === 'low' ? 0.65 : (seed.tier === 'mid' ? 0.55 : 0.45)));
-      const coreAlpha = Math.min(1.0, starAlpha * (0.95 + flare * 0.35));
-
-      const coreGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, coreRadius * 2.2);
-      coreGlow.addColorStop(0, `rgba(255, 255, 255, ${coreAlpha.toFixed(3)})`);
-      coreGlow.addColorStop(0.45, `rgba(${sR}, ${sG}, ${sB}, ${(coreAlpha * 0.75).toFixed(3)})`);
-      coreGlow.addColorStop(1, `rgba(${sR}, ${sG}, ${sB}, 0)`);
-      ctx.fillStyle = coreGlow;
-      ctx.beginPath();
-      ctx.arc(0, 0, coreRadius * 2.2, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Brilliant white nucleus point
-      ctx.fillStyle = `rgba(${coreR}, ${coreG}, ${coreB}, ${coreAlpha.toFixed(3)})`;
-      ctx.beginPath();
-      ctx.arc(0, 0, coreRadius, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.restore();
     }
+  }
+
+  // star nodes and 4-point diffraction spikes
+  for (const st of visibleStars) {
+    const { seed, x, y, alpha, flare } = st;
+    const sR = Math.round(seed.colorR * (1 - dayInvert) + 36 * dayInvert);
+    const sG = Math.round(seed.colorG * (1 - dayInvert) + 66 * dayInvert);
+    const sB = Math.round(seed.colorB * (1 - dayInvert) + 124 * dayInvert);
+    const coreR = Math.round(255 * (1 - dayInvert) + 18 * dayInvert);
+    const coreG = Math.round(255 * (1 - dayInvert) + 32 * dayInvert);
+    const coreB = Math.round(255 * (1 - dayInvert) + 58 * dayInvert);
+    const effAlpha = alpha * postDropFade;
+
+    if (st.isLifting && st.streakStretch > 1.08) {
+      const trailH = Math.min(320, (st.streakStretch - 1) * 44);
+      const streakGrad = ctx.createLinearGradient(x, y, x, y + trailH);
+      streakGrad.addColorStop(0, `rgba(${sR}, ${sG}, ${sB}, ${(effAlpha * 0.95).toFixed(3)})`);
+      streakGrad.addColorStop(0.35, `rgba(${sR}, ${Math.max(0, sG - 15)}, ${sB}, ${(effAlpha * 0.45).toFixed(3)})`);
+      streakGrad.addColorStop(1, `rgba(${sR}, ${sG}, ${sB}, 0)`);
+      ctx.strokeStyle = streakGrad;
+      ctx.lineWidth = Math.max(1.2, seed.radius * 0.85);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x, y + trailH);
+      ctx.stroke();
+    }
+
+    if (seed.defiesGravity && !st.isLifting) {
+      const susR = seed.radius * (2.8 + flare * 1.2);
+      ctx.strokeStyle = `rgba(${sR}, ${sG}, ${sB}, ${(effAlpha * 0.28).toFixed(3)})`;
+      ctx.lineWidth = 0.75;
+      ctx.beginPath();
+      ctx.arc(x, y, susR, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    const baseR = seed.radius * (1.0 + flare * 0.45) * postDropScale;
+    const scint = 0.86 + 0.14 * Math.sin(t * 9.5 + seed.idx * 4.3);
+    const starAlpha = Math.min(1.0, effAlpha * scint);
+
+    ctx.save();
+    ctx.translate(x, y);
+
+    const haloR = baseR * (seed.tier === 'low' ? 6.5 : (seed.tier === 'mid' ? 5.2 : 3.8)) * (0.85 + bloom * 0.45);
+    const haloAlpha = starAlpha * (seed.tier === 'low' ? 0.38 : (seed.tier === 'mid' ? 0.30 : 0.22)) * (0.8 + bloom * 0.35);
+
+    if (haloAlpha > 0.01) {
+      const haloGrad = ctx.createRadialGradient(0, 0, baseR * 0.3, 0, 0, haloR);
+      haloGrad.addColorStop(0, `rgba(${sR}, ${sG}, ${sB}, ${haloAlpha.toFixed(3)})`);
+      const midR = Math.min(255, sR + 25);
+      const midG = Math.max(0, sG - 15);
+      const midB = Math.max(0, sB - 35);
+      haloGrad.addColorStop(0.4, `rgba(${midR}, ${midG}, ${midB}, ${(haloAlpha * 0.45).toFixed(3)})`);
+      haloGrad.addColorStop(0.75, `rgba(${sR}, ${Math.max(0, sG - 25)}, ${Math.min(255, sB + 15)}, ${(haloAlpha * 0.12).toFixed(3)})`);
+      haloGrad.addColorStop(1, `rgba(${sR}, ${sG}, ${sB}, 0)`);
+
+      ctx.fillStyle = haloGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, haloR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const rayLen = baseR * (seed.tier === 'low' ? (5.8 + flare * 2.8) : (seed.tier === 'mid' ? (4.4 + flare * 2.2) : (2.9 + flare * 1.5))) * (0.85 + bloom * 0.25);
+    const rayAlpha = Math.min(1.0, starAlpha * (seed.tier === 'low' ? 0.88 : 0.74) * (1.0 + flare * 0.35));
+
+    if (rayLen > 4 && rayAlpha > 0.02) {
+      const drawNeedle = (len, w, a) => {
+        const grad = ctx.createLinearGradient(0, 0, len, 0);
+        grad.addColorStop(0, `rgba(255, 255, 255, ${a.toFixed(3)})`);
+        grad.addColorStop(0.22, `rgba(${sR}, ${sG}, ${sB}, ${(a * 0.75).toFixed(3)})`);
+        grad.addColorStop(0.68, `rgba(${sR}, ${Math.max(0, sG - 15)}, ${sB}, ${(a * 0.28).toFixed(3)})`);
+        grad.addColorStop(1, `rgba(${sR}, ${sG}, ${sB}, 0)`);
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(0, -w * 0.5);
+        ctx.lineTo(len, 0);
+        ctx.lineTo(0, w * 0.5);
+        ctx.closePath();
+        ctx.fill();
+      };
+
+      const needleW = Math.max(1.0, baseR * 0.28);
+      const lenH = rayLen * 1.15;
+      const lenV = rayLen * 0.92;
+
+      drawNeedle(lenH, needleW, rayAlpha);
+      ctx.save(); ctx.rotate(Math.PI); drawNeedle(lenH, needleW, rayAlpha); ctx.restore();
+      ctx.save(); ctx.rotate(Math.PI * 0.5); drawNeedle(lenV, needleW, rayAlpha); ctx.restore();
+      ctx.save(); ctx.rotate(-Math.PI * 0.5); drawNeedle(lenV, needleW, rayAlpha); ctx.restore();
+
+      if (seed.tier !== 'high' || flare > 0.06) {
+        const diagLen = rayLen * 0.38;
+        const diagW = needleW * 0.65;
+        const diagAlpha = rayAlpha * 0.36;
+
+        for (let di = 0; di < 4; di++) {
+          ctx.save();
+          ctx.rotate(Math.PI * 0.25 + di * Math.PI * 0.5);
+          drawNeedle(diagLen, diagW, diagAlpha);
+          ctx.restore();
+        }
+      }
+    }
+
+    const coreRadius = Math.max(1.2, baseR * (seed.tier === 'low' ? 0.65 : (seed.tier === 'mid' ? 0.55 : 0.45)));
+    const coreAlpha = Math.min(1.0, starAlpha * (0.95 + flare * 0.35));
+
+    const coreGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, coreRadius * 2.2);
+    coreGlow.addColorStop(0, `rgba(255, 255, 255, ${coreAlpha.toFixed(3)})`);
+    coreGlow.addColorStop(0.45, `rgba(${sR}, ${sG}, ${sB}, ${(coreAlpha * 0.75).toFixed(3)})`);
+    coreGlow.addColorStop(1, `rgba(${sR}, ${sG}, ${sB}, 0)`);
+    ctx.fillStyle = coreGlow;
+    ctx.beginPath();
+    ctx.arc(0, 0, coreRadius * 2.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = `rgba(${coreR}, ${coreG}, ${coreB}, ${coreAlpha.toFixed(3)})`;
+    ctx.beginPath();
+    ctx.arc(0, 0, coreRadius, 0, Math.PI * 2);
+    ctx.fill();
 
     ctx.restore();
   }
+
+  ctx.restore();
+}
 
   _drawDropExplosionFlash(ctx, dropAge, bloom) {
     ctx.save();
@@ -2095,7 +1940,6 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
       ctx.fillRect(0, 0, this.width, this.height);
     }
 
-    // Expanding luminous shockwave ring
     const ringRadius = 40 + Math.pow(progress, 0.55) * 920;
     const ringAlpha = Math.pow(1 - progress, 1.8) * 0.55 * bloom;
     if (ringAlpha > 0.01) {
@@ -2111,10 +1955,7 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
   _getRecentCutInfo(tCurrent) {
     const cutMode = this.params.cutMode || 'chord';
     if (cutMode === 'single') return -1;
-    const dur = this.project?.duration || 30.0;
-  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
-    ? this.project.dropTime
-    : (dur * 0.5);
+    const dropTime = this.getDropTime();
     if (tCurrent < dropTime + 0.1) return -1;
 
     let cuts = [];
@@ -2135,12 +1976,11 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
     let minDelta = 999;
     let closestIdx = -1;
     let closestCutTime = -1;
-    const window = 0.32; // optical camera flare decay window
+    const window = 0.32;
 
     for (let i = 0; i < cuts.length; i++) {
       const c = cuts[i];
       const dt = tCurrent - c;
-      // Skip the main drop point (main explosion handles it)
       if (Math.abs(c - dropTime) < 0.15) continue;
       if (dt >= 0 && dt < window && dt < minDelta) {
         minDelta = dt;
@@ -2168,7 +2008,6 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
     if (loopFade <= 0.05) return;
 
     const progress = dt / 0.32;
-    // Optical decay curve: fast energetic burst at shutter cut that dissipates smoothly
     const flareEnv = Math.pow(Math.max(0, 1 - progress), 2.2);
     if (flareEnv <= 0.005) return;
 
@@ -2180,13 +2019,12 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
     const centerX = this.skyCenterX;
     const centerY = this.skyCenterY;
 
-    // Flare hotspot origin in celestial sky (varied per cut for natural cinematic camera angle cuts)
     const hashA = this._hash(cutIdx * 19.3 + 3.7);
     const hashB = this._hash(cutIdx * 31.7 + 7.1);
     const flareX = W * (0.34 + hashA * 0.32);
     const flareY = this.skyTop + (this.pianoRollTop - this.skyTop) * (0.28 + hashB * 0.24);
 
-    // 1. Soft atmospheric optical bloom (diffuse spherical wash around light origin)
+    // diffuse optical bloom wash
     const washRadius = 620 * (0.8 + 0.2 * flareEnv);
     const washAlpha = 0.24 * flareEnv * (0.8 + bloom * 0.35);
     const washGrad = ctx.createRadialGradient(flareX, flareY, 15, flareX, flareY, washRadius);
@@ -2197,8 +2035,7 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
     ctx.fillStyle = washGrad;
     ctx.fillRect(0, 0, W, H);
 
-    // 2. Cinema Anamorphic Horizontal Laser Streak
-    // 2a. Soft diffuse anamorphic beam band
+    // horizontal anamorphic streak
     const bandH = (32 + 20 * flareEnv) * (0.85 + bloom * 0.25);
     const bandGrad = ctx.createLinearGradient(0, flareY - bandH * 0.5, 0, flareY + bandH * 0.5);
     bandGrad.addColorStop(0, 'rgba(255, 210, 130, 0)');
@@ -2207,7 +2044,6 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
     ctx.fillStyle = bandGrad;
     ctx.fillRect(0, flareY - bandH * 0.5, W, bandH);
 
-    // 2b. Razor-sharp horizontal anamorphic streak core
     const razorH = Math.max(1.8, 3.2 * flareEnv);
     const razorGrad = ctx.createRadialGradient(flareX, flareY, 0, flareX, flareY, W * 0.54);
     razorGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.96 * flareEnv).toFixed(3)})`);
@@ -2217,14 +2053,12 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
     ctx.fillStyle = razorGrad;
     ctx.fillRect(0, flareY - razorH * 0.5, W, razorH);
 
-    // 2c. Subtle chromatic aberration micro-streaks (+1.6px cyan, -1.6px warm amber)
     const fringeAlpha = (0.24 * flareEnv).toFixed(3);
     ctx.fillStyle = `rgba(100, 225, 255, ${fringeAlpha})`;
     ctx.fillRect(0, flareY - razorH * 0.5 - 1.6, W, 1.2);
     ctx.fillStyle = `rgba(255, 140, 85, ${fringeAlpha})`;
     ctx.fillRect(0, flareY + razorH * 0.5 + 0.6, W, 1.2);
 
-    // 3. Core optical hotspot burst
     const coreR = (12 + 28 * flareEnv) * (0.85 + bloom * 0.25);
     const coreGrad = ctx.createRadialGradient(flareX, flareY, 0, flareX, flareY, coreR);
     coreGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * flareEnv).toFixed(3)})`);
@@ -2236,11 +2070,10 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
     ctx.arc(flareX, flareY, coreR, 0, Math.PI * 2);
     ctx.fill();
 
-    // 4. Optical Lens Ghosts along the optical axis (connecting hotspot to lens center)
+    // optical lens ghosts along the aperture axis
     const axisDx = centerX - flareX;
     const axisDy = centerY - flareY;
 
-    // Ghost 1: Warm amber circular aperture iris ring
     const g1X = flareX + axisDx * 0.55;
     const g1Y = flareY + axisDy * 0.55;
     const g1R = 24 + 14 * flareEnv;
@@ -2252,7 +2085,6 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
     ctx.fillStyle = `rgba(255, 225, 160, ${(0.07 * flareEnv).toFixed(3)})`;
     ctx.fill();
 
-    // Ghost 2: Cyan/sapphire wide ethereal reflection disc (past the center)
     const g2X = flareX + axisDx * 1.35;
     const g2Y = flareY + axisDy * 1.35;
     const g2R = 46 + 26 * flareEnv;
@@ -2265,7 +2097,6 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
     ctx.arc(g2X, g2Y, g2R, 0, Math.PI * 2);
     ctx.fill();
 
-    // Ghost 3: Crisp subtle violet micro-dot
     const g3X = flareX + axisDx * 1.75;
     const g3Y = flareY + axisDy * 1.75;
     const g3R = 6 + 4 * flareEnv;
@@ -2279,7 +2110,6 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
 
   _drawPianoRoll(ctx, t, isPostDrop, energy) {
     const top = this.pianoRollTop;
-    const H = this.height - top;
     const W = this.width;
     const playheadX = 250;
     const pxPerSec = 175;
@@ -2287,15 +2117,11 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
 
     ctx.save();
 
-    // Completely transparent background — whole box fill & divider line removed per user request
-
-    // Notes label & source (clean lowercase, smoothly inverts in bright day)
     ctx.textAlign = 'left';
     ctx.fillStyle = this._mixRgb(237, 240, 248, 20, 26, 36, dayInvert);
     ctx.font = '600 24px "Space Grotesk", sans-serif';
     ctx.fillText('• notes', 48, top + 42);
 
-    // Sample name & index number on the same line, aligned to the right
     const title = (this.project.title || 'untitled').toLowerCase();
     const rawNum = this.project.sampleNumber ? String(this.project.sampleNumber).trim() : '';
     const numFormatted = rawNum ? (rawNum.startsWith('#') ? rawNum : `#${rawNum}`) : '';
@@ -2306,7 +2132,6 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
     ctx.font = '600 24px "IBM Plex Mono", monospace';
     ctx.fillText(sampleDisplay, W - 48, top + 42);
 
-    // Left subtitle: source
     ctx.textAlign = 'left';
     const activeTrackNames = this.rawTracks
       .filter((tr) => this.selectedTrackIds.has(tr.id))
@@ -2316,13 +2141,11 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
     ctx.font = '500 16px "IBM Plex Mono", monospace';
     ctx.fillText(`source · ${activeTrackNames || 'midi'}`, 48, top + 72);
 
-    // Roll grid bounds
     const gridTop = top + 92;
     const gridBottom = this.height - 54;
     const gridHeight = gridBottom - gridTop;
     const gridLeft = 105;
 
-    // Left pitch scale ticks
     ctx.strokeStyle = this._mixRgba(255, 255, 255, 0.14, 0, 0, 0, 0.16, dayInvert);
     ctx.lineWidth = 1;
     const numTicks = 26;
@@ -2335,12 +2158,10 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
       ctx.stroke();
     }
 
-    // Clip note & bar grid area
     ctx.beginPath();
     ctx.rect(gridLeft, gridTop - 28, W - gridLeft - 32, gridHeight + 40);
     ctx.clip();
 
-    // Horizontal subtle pitch guide lines
     ctx.strokeStyle = this._mixRgba(255, 255, 255, 0.04, 0, 0, 0, 0.05, dayInvert);
     for (let i = 0; i <= 8; i++) {
       const gy = gridTop + (i / 8) * gridHeight;
@@ -2350,7 +2171,6 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
       ctx.stroke();
     }
 
-    // Scrolling Bar Grid Lines & Bar Numbers (1, 2, 3, 4...)
     const secPerBar = (60 / (this.project.bpm || 120)) * 4;
     const dur = this.project.duration || 30.0;
     const totalBars = Math.max(1, Math.round(dur / secPerBar));
@@ -2363,7 +2183,7 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
       const bx = playheadX + (barTime - t) * pxPerSec;
       if (bx < gridLeft - 20 || bx > W) continue;
 
-      const normBar = ((b % totalBars) + totalBars) % totalBars; // Circular 0..totalBars-1
+      const normBar = ((b % totalBars) + totalBars) % totalBars;
       const displayBarNum = normBar + 1;
       const isDropBarLine = displayBarNum === this.project.dropBar;
       ctx.strokeStyle = isDropBarLine
@@ -2381,7 +2201,6 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
       ctx.fillText(String(displayBarNum), bx - 4, gridTop - 12);
     }
 
-    // Dynamic Chord Markers on Piano Roll (full track: intro + drop)
     const chordMarkers = this.chordTimelineMarkers || [];
     if (chordMarkers.length > 0) {
       ctx.save();
@@ -2406,7 +2225,7 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
       ctx.restore();
     }
 
-    // Draw Scrolling MIDI Notes (with seamless circular infinite belt wrapping)
+    // scrolling midi notes with circular loop wrapping
     const pitchSpan = Math.max(1, this.maxPitch - this.minPitch);
 
     const drawNoteBar = (n, noteTime, isWrappedIntro) => {
@@ -2434,7 +2253,6 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
         ctx.fillRect(nx, ny, nw, nh);
         ctx.shadowBlur = 0;
 
-        // Playhead contact burst circle
         const hitAge = t - noteTime;
         const ringR = 5 + Math.min(1, hitAge * 4) * 14;
         ctx.strokeStyle = notePostDrop
@@ -2461,18 +2279,15 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
     for (const n of this.activeNotes) {
       drawNoteBar(n, n.time, false);
       if (this.params.seamlessLoop) {
-        // As song approaches end, project upcoming intro notes forward so they roll in from the right edge
         if (t > dur - 6.0 && n.time < 6.0) {
           drawNoteBar(n, n.time + dur, true);
         }
-        // At start of loop, project trailing drop notes backward so they smoothly exit past the left playhead
         if (t < 2.5 && n.time > dur - 3.0) {
           drawNoteBar(n, n.time - dur, false);
         }
       }
     }
 
-    // Vertical Playhead Line (smoothly blends from post-drop gold back to intro silver at loop seam)
     const loopFade = this._getLoopFade(t);
     const postDropPlayhead = isPostDrop ? loopFade : 0;
     const phGold = [245, 228, 198];
@@ -2503,7 +2318,6 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
     ctx.save();
     ctx.textAlign = 'center';
 
-    // Drop shadow for crisp contrast over video & falling stars (smoothly inverts to soft backlight during bright day)
     if (dayInvert > 0.5) {
       const whiteBacklight = +(0.85 * dayInvert).toFixed(2);
       ctx.shadowColor = `rgba(255, 255, 255, ${whiteBacklight})`;
@@ -2526,26 +2340,15 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
 
     const baseY = this.pianoRollTop;
 
-    // 1. Key & BPM centered above piano roll (smoothly inverts to dark slate during bright day)
     ctx.font = '600 32px "IBM Plex Mono", monospace';
     ctx.fillStyle = this._mixRgb(226, 232, 245, 30, 38, 54, dayInvert);
     ctx.fillText(text, W * 0.5, baseY - 56);
 
-    // 2. Artist name underneath in small and grey
     ctx.font = '500 20px "IBM Plex Mono", monospace';
     ctx.fillStyle = this._mixRgba(165, 178, 205, 0.78, 65, 75, 95, 0.80, dayInvert);
     ctx.fillText(artist, W * 0.5, baseY - 20);
 
     ctx.restore();
-  }
-
-  // Alias for backward compatibility
-  _drawKeyAndBpm(ctx, isPostDrop, postDropBlend = 0) {
-    this._drawTrackInfoAbovePianoRoll(ctx, isPostDrop, postDropBlend);
-  }
-
-  _drawMinimalHeader() {
-    // Complete top line of the screen and top header bar removed per user request
   }
 }
 

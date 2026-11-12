@@ -119,15 +119,15 @@ class TemplateRegistry {
       console.error('Invalid template passed to register', template);
       return;
     }
-    // don't overwrite 3-box presets with legacy class templates
-    if (this.templates.has(template.id) && this.templates.get(template.id) instanceof ReelPresetTemplateAdapter) {
-      return;
-    }
     this.templates.set(template.id, template);
   }
 
   registerPreset(preset) {
     if (!preset || !preset.id) return;
+    const existing = this.templates.get(preset.id);
+    if (existing && !(existing instanceof ReelPresetTemplateAdapter)) {
+      return;
+    }
     this.register(new ReelPresetTemplateAdapter(preset));
   }
 

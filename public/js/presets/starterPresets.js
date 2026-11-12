@@ -775,7 +775,7 @@
         if (state.chordNames && state.chordNames.length > 0 && chordIdx >= 0) {
           chordDisplay = state.chordNames[chordIdx % state.chordNames.length];
         } else if (frame.midi && frame.midi.activeNotes && frame.midi.activeNotes.length > 0) {
-          const names = Array.from(new Set(frame.midi.activeNotes.map((n) => n.name.replace(/\\d+$/, ''))));
+          const names = Array.from(new Set(frame.midi.activeNotes.map((n) => (n.name || 'note').replace(/\\d+$/, ''))));
           chordDisplay = names.slice(0, 4).join(' ');
         } else if (chordIdx >= 0) {
           chordDisplay = \`CHORD \${chordIdx + 1}\`;
@@ -850,6 +850,9 @@
   };
 
   window.STARTER_PRESETS = {
+    'anime-chord-flow': ANIME_CHORD_FLOW_PRESET
+  };
+  window.STARTER_PRESET_DEFINITIONS = {
     constellations: CONSTELLATIONS_PRESET,
     'cinematic-minimal': CINEMATIC_MINIMAL_PRESET,
     'anime-chord-flow': ANIME_CHORD_FLOW_PRESET
