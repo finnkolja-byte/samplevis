@@ -431,21 +431,26 @@
       const uRes = getLoc('u_resolution');
       if (uRes) gl.uniform2f(uRes, this.width, this.height);
 
+      const lerp = (a, b, t) => a + (b - a) * t;
+      this.smoothedBass = lerp(this.smoothedBass !== undefined ? this.smoothedBass : 0.4, audioMetrics.bass, 0.2);
+      this.smoothedRms = lerp(this.smoothedRms !== undefined ? this.smoothedRms : 0.4, audioMetrics.rms, 0.16);
+      this.smoothedNoteHit = lerp(this.smoothedNoteHit !== undefined ? this.smoothedNoteHit : 0.0, noteTriggerImpulse, 0.3);
+
       const uBass = getLoc('u_bass');
-      if (uBass) gl.uniform1f(uBass, audioMetrics.bass);
+      if (uBass) gl.uniform1f(uBass, this.smoothedBass);
       const uMid = getLoc('u_mid');
       if (uMid) gl.uniform1f(uMid, audioMetrics.mid);
       const uHigh = getLoc('u_high');
       if (uHigh) gl.uniform1f(uHigh, audioMetrics.high);
       const uRms = getLoc('u_rms');
-      if (uRms) gl.uniform1f(uRms, audioMetrics.rms);
+      if (uRms) gl.uniform1f(uRms, this.smoothedRms);
 
       const uHasMidi = getLoc('u_has_midi');
       if (uHasMidi) gl.uniform1f(uHasMidi, this.selectedTrackIds.size > 0 ? 1.0 : 0.0);
       const uBpm = getLoc('u_bpm');
       if (uBpm) gl.uniform1f(uBpm, this.project?.bpm || 120);
       const uNoteHit = getLoc('u_note_hit');
-      if (uNoteHit) gl.uniform1f(uNoteHit, noteTriggerImpulse);
+      if (uNoteHit) gl.uniform1f(uNoteHit, this.smoothedNoteHit);
       const uActivePitch = getLoc('u_active_pitch');
       if (uActivePitch) gl.uniform1f(uActivePitch, activePitch);
 
@@ -565,9 +570,11 @@
           duration,
           progress: Math.max(0, Math.min(1, time / duration)),
           bass: audioMetrics.bass,
+          bassSmooth: this.smoothedBass !== undefined ? this.smoothedBass : audioMetrics.bass,
           mid: audioMetrics.mid,
           high: audioMetrics.high,
           rms: audioMetrics.rms,
+          rmsSmooth: this.smoothedRms !== undefined ? this.smoothedRms : audioMetrics.rms,
           fft: this.fftArray,
           waveform: this.waveformArray
         },

@@ -853,11 +853,11 @@
     version: '1.0',
     id: 'aura-spectrum',
     meta: {
-      name: 'Aura Spectrum',
-      title: 'Aura Spectrum',
-      description: 'Audio-reactive liquid gradient aura and circular spectrum (zero clips)',
+      name: 'Northern Nebula',
+      title: 'Northern Nebula',
+      description: 'Audio-reactive northern lights and cosmic nebula folds with dual gradient and circular spectrum',
       aspectRatio: '9:16',
-      badge: 'Procedural'
+      badge: 'Nebula'
     },
     modules: {
       clips: {
@@ -876,26 +876,83 @@
         uniform float u_bass;
         uniform float u_rms;
         uniform float u_note_hit;
-        uniform float auraScale;
+        uniform vec3 nebulaPrimary;
+        uniform vec3 nebulaSecondary;
+        uniform float nebulaSpeed;
+        uniform float nebulaDensity;
+
+        float hash(vec2 p) {
+          p = fract(p * vec2(123.34, 456.21));
+          p += dot(p, p + 45.32);
+          return fract(p.x * p.y);
+        }
+
+        float noise(vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          // quintic smoothstep (c2 continuous)
+          vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+          return mix(
+            mix(hash(i + vec2(0.0, 0.0)), hash(i + vec2(1.0, 0.0)), u.x),
+            mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x),
+            u.y
+          );
+        }
+
+        float fbm(vec2 p) {
+          float v = 0.0;
+          float a = 0.5;
+          mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);
+          for (int i = 0; i < 4; ++i) {
+            v += a * noise(p);
+            p = rot * p * 2.02 + vec2(1.7, 9.2);
+            a *= 0.5;
+          }
+          return v;
+        }
 
         void main() {
-          vec2 uv = v_uv - 0.5;
+          vec2 aspect = vec2(u_resolution.x / u_resolution.y, 1.0);
+          vec2 uv = (v_uv - 0.5) * aspect;
           float dist = length(uv);
 
-          // pulsing liquid aura radial gradient
-          float pulse = 0.35 + u_bass * 0.45 * (auraScale > 0.0 ? auraScale : 1.0);
-          float glow = smoothstep(pulse, 0.02, dist);
+          float spd = nebulaSpeed > 0.0 ? nebulaSpeed : 1.0;
+          float dens = nebulaDensity > 0.0 ? nebulaDensity : 1.1;
+          float t = u_time * 0.14 * spd;
 
-          vec3 baseBg = vec3(0.06, 0.08, 0.14);
-          vec3 auraColor = vec3(0.35, 0.72, 0.55) * (0.8 + u_note_hit * 0.5);
-          vec3 innerWarmth = vec3(0.55, 0.85, 0.65) * u_rms;
+          // gentle undulating curtain waves
+          vec2 p = uv * 2.2;
+          p.x += sin(p.y * 1.5 + t * 1.2) * 0.25;
+          p.y += cos(p.x * 1.2 + t * 0.8) * 0.2;
 
-          vec3 col = baseBg + auraColor * glow * 0.65 + innerWarmth * smoothstep(0.2, 0.0, dist);
+          // layered silky domain warping
+          float n1 = fbm(p + vec2(0.0, t * 0.6));
+          float n2 = fbm(p + vec2(n1 * 1.8, -t * 0.5) + vec2(4.2, 1.7));
+          float n3 = fbm(p + vec2(n2 * 2.0, t * 0.3) + vec2(u_bass * 0.15, u_rms * 0.1));
 
-          // subtle edge vignette
-          col *= 1.0 - smoothstep(0.3, 0.75, dist);
+          // smooth nebula cloud density
+          float cloud = smoothstep(0.18, 0.82, n3) * dens;
+          float centerGlow = smoothstep(0.95, 0.05, dist);
 
-          gl_FragColor = vec4(col, 1.0);
+          // audio energy modulation
+          float energy = 0.55 + u_rms * 0.45 + u_bass * 0.3 + u_note_hit * 0.25;
+
+          // colors: primary (emerald/sage) and secondary (arctic/violet)
+          vec3 col1 = (nebulaPrimary.r > 0.0 || nebulaPrimary.g > 0.0 || nebulaPrimary.b > 0.0) ? nebulaPrimary : vec3(0.51, 0.79, 0.56);
+          vec3 col2 = (nebulaSecondary.r > 0.0 || nebulaSecondary.g > 0.0 || nebulaSecondary.b > 0.0) ? nebulaSecondary : vec3(0.42, 0.44, 0.79);
+
+          // deep space backdrop
+          vec3 baseSpace = vec3(0.045, 0.062, 0.105);
+
+          // silky aurora ribbon color blend
+          vec3 aurora = mix(col1, col2, smoothstep(0.1, 0.9, n2));
+          // bright core highlight on transients
+          aurora = mix(aurora, vec3(0.92, 0.98, 0.95), smoothstep(0.65, 0.95, n3) * u_note_hit * 0.6);
+
+          vec3 finalCol = baseSpace + aurora * cloud * centerGlow * energy * 1.4;
+          finalCol *= 1.0 - smoothstep(0.42, 0.98, dist);
+
+          gl_FragColor = vec4(finalCol, 1.0);
         }
       `
     },
@@ -904,13 +961,14 @@
         state.particles = [];
         const W = project.aspectRatio === '16:9' ? 1920 : 1080;
         const H = project.aspectRatio === '16:9' ? 1080 : 1920;
-        for (let i = 0; i < 60; i++) {
+        for (let i = 0; i < 75; i++) {
           state.particles.push({
             x: Math.random() * W,
             y: Math.random() * H,
             r: 1 + Math.random() * 2.5,
             speed: 0.5 + Math.random() * 1.5,
-            alpha: 0.2 + Math.random() * 0.5
+            alpha: 0.25 + Math.random() * 0.5,
+            isSecondary: Math.random() > 0.5
           });
         }
       `,
@@ -923,39 +981,47 @@
         const isPostDrop = t >= dropTime;
         const dropAge = isPostDrop ? t - dropTime : -1;
 
-        const accent = controls.glowColor || '#83ca90';
+        const colPrimary = controls.nebulaPrimary || '#83ca90';
+        const colSecondary = controls.nebulaSecondary || '#6b70c9';
         const numBars = controls.barCount !== undefined ? Math.round(controls.barCount) : 48;
         const typeScale = controls.typographyScale !== undefined ? controls.typographyScale : 1.0;
 
+        const smoothedBass = frame.audio.bassSmooth !== undefined ? frame.audio.bassSmooth : frame.audio.bass;
+        const smoothedRms = frame.audio.rmsSmooth !== undefined ? frame.audio.rmsSmooth : frame.audio.rms;
+
         ctx.save();
 
-        // floating stardust particles
+        // floating dual-tone stardust particles
         if (state.particles) {
-          ctx.fillStyle = accent;
           state.particles.forEach((p) => {
             const curY = (p.y - t * p.speed * 20) % height;
             const y = curY < 0 ? curY + height : curY;
-            ctx.globalAlpha = p.alpha * (0.6 + frame.audio.rms * 0.4);
+            ctx.fillStyle = p.isSecondary ? colSecondary : colPrimary;
+            ctx.globalAlpha = p.alpha * (0.6 + smoothedRms * 0.4);
             ctx.beginPath();
             ctx.arc(p.x, y, p.r, 0, Math.PI * 2);
             ctx.fill();
           });
         }
 
-        // centered circular spectrum
+        // centered circular spectrum with dual-color gradient
         const cx = width * 0.5;
         const cy = height * 0.44;
         const baseRadius = Math.min(width, height) * 0.22;
-        const bassPulse = frame.audio.bass * 28;
+        const bassPulse = smoothedBass * 28;
+
+        const grad = ctx.createLinearGradient(cx - baseRadius, cy - baseRadius, cx + baseRadius, cy + baseRadius);
+        grad.addColorStop(0, colPrimary);
+        grad.addColorStop(1, colSecondary);
 
         ctx.globalAlpha = 1.0;
-        ctx.strokeStyle = accent;
+        ctx.strokeStyle = grad;
         ctx.lineWidth = 4;
         ctx.lineCap = 'round';
 
         for (let i = 0; i < numBars; i++) {
           const angle = (i / numBars) * Math.PI * 2 - Math.PI * 0.5;
-          const energy = frame.audio.rms * (Math.sin(t * 6 + i * 0.35) * 0.5 + 0.5);
+          const energy = smoothedRms * (Math.sin(t * 5 + i * 0.35) * 0.5 + 0.5);
           const barLen = 8 + energy * (isPostDrop ? 95 : 55) + bassPulse * 0.55;
 
           const x1 = cx + Math.cos(angle) * (baseRadius + bassPulse);
@@ -1008,26 +1074,43 @@
     controlsBox: {
       fields: [
         {
-          id: 'glowColor',
+          id: 'nebulaPrimary',
           target: 'both',
-          label: 'Aura Glow Color',
+          label: 'Aurora Primary Color',
           type: 'color',
           defaultValue: '#83ca90'
         },
         {
-          id: 'auraScale',
+          id: 'nebulaSecondary',
+          target: 'both',
+          label: 'Aurora Secondary Color',
+          type: 'color',
+          defaultValue: '#6b70c9'
+        },
+        {
+          id: 'nebulaSpeed',
           target: 'shader_uniform',
-          label: 'Aura Radius',
+          label: 'Undulation Speed',
           type: 'slider',
           defaultValue: 1.0,
-          min: 0.3,
+          min: 0.2,
+          max: 2.5,
+          step: 0.1
+        },
+        {
+          id: 'nebulaDensity',
+          target: 'shader_uniform',
+          label: 'Nebula Glow Density',
+          type: 'slider',
+          defaultValue: 1.1,
+          min: 0.4,
           max: 2.2,
           step: 0.1
         },
         {
           id: 'barCount',
           target: 'overlay_control',
-          label: 'Spectrum Bars',
+          label: 'Spectrum Tick Bars',
           type: 'slider',
           defaultValue: 48,
           min: 24,
@@ -1041,13 +1124,15 @@
           type: 'slider',
           defaultValue: 1.0,
           min: 0.7,
-          max: 1.6,
+          max: 1.5,
           step: 0.05
         }
       ],
       values: {
-        glowColor: '#83ca90',
-        auraScale: 1.0,
+        nebulaPrimary: '#83ca90',
+        nebulaSecondary: '#6b70c9',
+        nebulaSpeed: 1.0,
+        nebulaDensity: 1.1,
         barCount: 48,
         typographyScale: 1.0
       }

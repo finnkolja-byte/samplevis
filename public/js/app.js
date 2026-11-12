@@ -43,6 +43,7 @@
     aspectRatioToggleBtn: document.getElementById('aspectRatioToggleBtn'),
     aspectRatioTelemetry: document.getElementById('aspectRatioTelemetry'),
     canvasHousing: document.querySelector('.canvas-housing'),
+    studioGrid: document.getElementById('studioGrid'),
     authBadge: document.getElementById('authBadge'),
     encoderBadge: document.getElementById('encoderBadge'),
     sampleDropzone: document.getElementById('sampleDropzone'),
@@ -139,6 +140,10 @@
       if (clipsEnabled && clipModule?.category && els.fetchCategorySelect) {
         els.fetchCategorySelect.value = clipModule.category;
       }
+    }
+
+    if (els.studioGrid) {
+      els.studioGrid.classList.toggle('no-clips', !clipsEnabled);
     }
 
     const midiModule = tpl.modules?.midiTracks || tpl.preset?.modules?.midiTracks;

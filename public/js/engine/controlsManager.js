@@ -106,31 +106,23 @@
 
         } else if (field.type === 'color') {
           const row = document.createElement('div');
-          row.className = 'slider-row';
-          row.style.marginTop = '8px';
-          row.style.marginBottom = '8px';
+          row.className = 'color-control-row';
 
           const label = document.createElement('label');
+          label.className = 'color-control-label';
           label.htmlFor = `ctrl_${field.id}`;
           label.textContent = field.label;
 
           const colorWrap = document.createElement('div');
-          colorWrap.style.display = 'flex';
-          colorWrap.style.alignItems = 'center';
-          colorWrap.style.gap = '8px';
+          colorWrap.className = 'color-picker-chip';
 
           const input = document.createElement('input');
           input.type = 'color';
           input.id = `ctrl_${field.id}`;
-          input.value = String(currentVal || '#5e8a7d');
-          input.style.border = 'none';
-          input.style.background = 'transparent';
-          input.style.cursor = 'pointer';
-          input.style.width = '28px';
-          input.style.height = '24px';
+          input.value = String(currentVal || '#83ca90');
 
           const hexText = document.createElement('span');
-          hexText.className = 'slider-val';
+          hexText.className = 'color-hex-tag';
           hexText.textContent = String(input.value);
 
           input.addEventListener('input', (e) => {
