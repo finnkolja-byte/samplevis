@@ -532,12 +532,168 @@
     return cuts.length > 0 ? cuts : [effectiveDrop];
   }
 
+  // computes macro-harmonic chord progression timeline across song bars
+  // analyzes bar intervals and pitch sets to detect steady chords (e.g. Bmaj7, G#m7)
+  function computeChordTimelineMarkers(project) {
+    if (!project) return [];
+    const bpm = project.bpm || 120;
+    const duration = project.duration || 30.0;
+    const dropTime = typeof project.dropTime === 'number' ? project.dropTime : duration * 0.5;
+
+    const notePool = [];
+    const tracks = project.tracks || [];
+    for (const tr of tracks) {
+      if (tr.notes && Array.isArray(tr.notes)) {
+        for (const n of tr.notes) {
+          notePool.push({
+            midi: n.midi !== undefined ? n.midi : (n.pitch !== undefined ? n.pitch : 60),
+            time: n.time !== undefined ? n.time : (n.startTime !== undefined ? n.startTime : 0),
+            duration: n.duration !== undefined ? n.duration : 0.5
+          });
+        }
+      }
+    }
+
+    if (notePool.length === 0) return [];
+
+    const rawTimes = [];
+    const cuts = project.chordCutTimes || [];
+    if (cuts.length >= 2) {
+      for (const c of cuts) {
+        rawTimes.push(c);
+        let introT = c - dropTime;
+        while (introT >= -0.05) {
+          rawTimes.push(Math.max(0, Number(introT.toFixed(3))));
+          introT -= dropTime;
+        }
+      }
+      rawTimes.push(0);
+    } else {
+      rawTimes.push(0);
+      const lowNotes = notePool.filter((n) => n.midi < 55);
+      const minInterval = (60 / bpm) * 2.5;
+      let lastLowT = -999;
+      for (const n of lowNotes) {
+        if (n.time - lastLowT >= minInterval) {
+          rawTimes.push(Number(n.time.toFixed(3)));
+          lastLowT = n.time;
+        }
+      }
+    }
+
+    rawTimes.sort((a, b) => a - b);
+    const mergedTimes = [];
+    for (const t of rawTimes) {
+      if (t < 0 || t > duration - 0.25) continue;
+      const hasExisting = mergedTimes.some((m) => Math.abs(m - t) < 0.35);
+      if (!hasExisting) {
+        mergedTimes.push(t);
+      }
+    }
+    mergedTimes.sort((a, b) => a - b);
+
+    const keyStr = (project.key || '').toLowerCase();
+    const isFlatKey = /([a-g]b|bb|eb|ab|db|gb|f\b|d min|g min|c min)/i.test(keyStr);
+    const NOTE_NAMES = isFlatKey
+      ? ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
+      : ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+    const CHORD_TYPES = [
+      { name: 'maj7', intervals: [0, 4, 7, 11], weight: 1.30 },
+      { name: 'm7', intervals: [0, 3, 7, 10], weight: 1.30 },
+      { name: '7', intervals: [0, 4, 7, 10], weight: 1.20 },
+      { name: 'maj9', intervals: [0, 4, 7, 11, 2], weight: 1.35 },
+      { name: 'add9', intervals: [0, 4, 7, 2], weight: 1.25 },
+      { name: 'maj', intervals: [0, 4, 7], weight: 1.15 },
+      { name: 'm', intervals: [0, 3, 7], weight: 1.15 },
+      { name: 'sus4', intervals: [0, 5, 7], weight: 1.05 },
+      { name: 'sus2', intervals: [0, 2, 7], weight: 1.05 },
+      { name: 'dim', intervals: [0, 3, 6], weight: 0.90 },
+      { name: '5', intervals: [0, 7], weight: 0.85 }
+    ];
+
+    function detectChordAt(t) {
+      const active = notePool.filter((n) =>
+        (n.time >= t - 0.08 && n.time <= t + 0.35) ||
+        (n.time <= t + 0.02 && n.time + n.duration >= t + 0.12)
+      );
+      if (active.length === 0) return null;
+
+      const sorted = [...active].sort((a, b) => a.midi - b.midi);
+      const bassMidi = sorted[0].midi;
+      const bassRoot = bassMidi % 12;
+      const pitchSet = new Set(active.map((n) => n.midi % 12));
+
+      let bestChord = null;
+      let bestScore = -999;
+
+      for (const type of CHORD_TYPES) {
+        let matched = 0;
+        let missed = 0;
+        for (const interval of type.intervals) {
+          const pitch = (bassRoot + interval) % 12;
+          if (pitchSet.has(pitch)) matched++;
+          else missed++;
+        }
+        const score = (matched * 2.5 - missed * 0.8) * type.weight;
+        if (matched >= 2 && score > bestScore) {
+          bestScore = score;
+          const label = type.name === 'maj9' ? 'maj7' : type.name;
+          bestChord = NOTE_NAMES[bassRoot] + label;
+        }
+      }
+
+      if (bestChord && bestScore >= 2.0) {
+        return bestChord;
+      }
+
+      for (const root of pitchSet) {
+        if (root === bassRoot) continue;
+        for (const type of CHORD_TYPES) {
+          let matched = 0;
+          let missed = 0;
+          for (const interval of type.intervals) {
+            const pitch = (root + interval) % 12;
+            if (pitchSet.has(pitch)) matched++;
+            else missed++;
+          }
+          const score = (matched * 2.0 - missed * 1.0) * type.weight;
+          if (matched >= 3 && score > bestScore) {
+            bestScore = score;
+            const label = type.name === 'maj9' ? 'maj7' : type.name;
+            bestChord = NOTE_NAMES[root] + label;
+          }
+        }
+      }
+
+      return bestChord || (NOTE_NAMES[bassRoot] + 'maj');
+    }
+
+    const markers = [];
+    let lastChord = null;
+    let lastTime = -999;
+
+    for (const t of mergedTimes) {
+      const chordName = detectChordAt(t);
+      if (!chordName) continue;
+      if (chordName === lastChord && t - lastTime < 1.3) continue;
+      const rootMatch = chordName.match(/^[A-G][#b]?/i);
+      const root = rootMatch ? rootMatch[0] : chordName.charAt(0);
+      markers.push({ time: t, name: chordName, root });
+      lastChord = chordName;
+      lastTime = t;
+    }
+
+    return markers;
+  }
+
   window.clientAnalyzer = {
     parseSampleFilename,
     analyzeAudioFileInBrowser,
     parseAlsFileInBrowser,
     parseMidiFileInBrowser,
-    extractChordCutTimes
+    extractChordCutTimes,
+    computeChordTimelineMarkers
   };
 })();
 

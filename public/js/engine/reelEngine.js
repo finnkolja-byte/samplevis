@@ -254,6 +254,11 @@
     }
 
     setProject(project) {
+      if (project && (!project.chordTimelineMarkers || project.chordTimelineMarkers.length === 0)) {
+        if (typeof window !== 'undefined' && window.clientAnalyzer && typeof window.clientAnalyzer.computeChordTimelineMarkers === 'function') {
+          project.chordTimelineMarkers = window.clientAnalyzer.computeChordTimelineMarkers(project);
+        }
+      }
       this.project = project;
       if (project?.tracks) {
         this.selectedTrackIds.clear();
@@ -419,7 +424,8 @@
           if (time >= m.time) best = m;
           else break;
         }
-        if (best) return { name: best.name, time: best.time, root: best.name.replace(/[^A-Ga-g#b]/g, '') };
+        const root = best.root || best.name.match(/^[A-G][#b]?/i)?.[0] || best.name.charAt(0);
+        return { name: best.name, time: best.time, root };
       }
 
       const { active } = this._getActiveAndTriggeredNotes(time);

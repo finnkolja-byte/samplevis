@@ -596,6 +596,11 @@
   }
 
   function loadProjectIntoStudio(project, clips, recommendedClips) {
+    if (project && (!project.chordTimelineMarkers || project.chordTimelineMarkers.length === 0)) {
+      if (window.clientAnalyzer && typeof window.clientAnalyzer.computeChordTimelineMarkers === 'function') {
+        project.chordTimelineMarkers = window.clientAnalyzer.computeChordTimelineMarkers(project);
+      }
+    }
     state.project = project;
     if (clips) state.clips = clips;
 
