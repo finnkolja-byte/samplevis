@@ -22,11 +22,23 @@
       <a href="/gallery.html" target="_blank" class="gallery-nav-btn" title="browse preset gallery &amp; templates in a new tab">
         presets gallery ↗
       </a>
-      <button class="design-switcher-btn" id="openDesignModalBtn" type="button" title="switch visual design template">
-        <span class="design-label-prefix">design:</span>
-        <span class="design-label-active" id="topActiveDesignLabel">constellations</span>
-        <span class="design-label-switch">[switch]</span>
-      </button>
+      <div class="topbar-preset-group">
+        <input
+          type="text"
+          id="topPresetNameInput"
+          class="topbar-preset-name-input"
+          value="constellations"
+          aria-label="preset name"
+          title="click to rename preset"
+          spellcheck="false"
+        />
+        <button class="btn-inline" id="openDesignModalBtn" type="button" title="switch visual design template">
+          [switch]
+        </button>
+        <button class="btn btn-secondary btn-xs" id="topSavePresetBtn" type="button" title="save preset and capture thumbnail">
+          save preset
+        </button>
+      </div>
     </div>
     <div class="topbar-center">
       <div class="telemetry-readout" id="topTelemetry">

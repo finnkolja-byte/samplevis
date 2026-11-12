@@ -329,6 +329,37 @@ button {
   font-size: 10px;
 }
 
+.topbar-preset-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar-preset-name-input {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-loud);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  width: 170px;
+  transition: border-color var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard);
+}
+
+.topbar-preset-name-input:hover {
+  background: var(--fill-subtle);
+  border-color: var(--line);
+}
+
+.topbar-preset-name-input:focus {
+  outline: none;
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
 /* studio grid */
 .studio-grid {
   position: relative;

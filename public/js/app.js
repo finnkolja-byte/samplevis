@@ -99,7 +99,8 @@
     byokModelInput: document.getElementById('byokModelInput'),
     saveAiSettingsBtn: document.getElementById('saveAiSettingsBtn'),
     aiSettingsSaveStatus: document.getElementById('aiSettingsSaveStatus'),
-    topActiveDesignLabel: document.getElementById('topActiveDesignLabel'),
+    topPresetNameInput: document.getElementById('topPresetNameInput'),
+    topSavePresetBtn: document.getElementById('topSavePresetBtn'),
     openDesignModalBtn: document.getElementById('openDesignModalBtn'),
     designModal: document.getElementById('designModal'),
     closeDesignModalBtn: document.getElementById('closeDesignModalBtn'),
@@ -123,8 +124,8 @@
     els.templateControlsContainer
   );
   visualizer = window.templateRegistry.activeTemplate;
-  if (els.topActiveDesignLabel && visualizer) {
-    els.topActiveDesignLabel.textContent = visualizer.name;
+  if (els.topPresetNameInput && visualizer) {
+    els.topPresetNameInput.value = visualizer.name;
   }
   applyTemplateModules(visualizer);
 
@@ -1437,8 +1438,8 @@
             els.templateControlsContainer
           );
           visualizer = window.templateRegistry.activeTemplate;
-          if (els.topActiveDesignLabel) {
-            els.topActiveDesignLabel.textContent = tpl.name;
+          if (els.topPresetNameInput) {
+            els.topPresetNameInput.value = tpl.name;
           }
           applyTemplateModules(visualizer);
           updateMetadataToVisualizer();
@@ -1477,8 +1478,8 @@
               els.templateControlsContainer
             );
             visualizer = window.templateRegistry.activeTemplate;
-            if (els.topActiveDesignLabel) {
-              els.topActiveDesignLabel.textContent = imported.meta.name;
+            if (els.topPresetNameInput) {
+              els.topPresetNameInput.value = imported.meta.name;
             }
             closeDesignModal();
           }
@@ -1555,8 +1556,8 @@
               els.templateControlsContainer
             );
             visualizer = window.templateRegistry.activeTemplate;
-            if (els.topActiveDesignLabel) {
-              els.topActiveDesignLabel.textContent = saved.meta.name;
+            if (els.topPresetNameInput) {
+              els.topPresetNameInput.value = saved.meta.name;
             }
             closeDesignModal();
           }
@@ -1732,8 +1733,8 @@
 
     window.templateRegistry.onTemplateChange((tpl) => {
       visualizer = tpl;
-      if (els.topActiveDesignLabel) {
-        els.topActiveDesignLabel.textContent = tpl.name;
+      if (els.topPresetNameInput) {
+        els.topPresetNameInput.value = tpl.name;
       }
       applyTemplateModules(tpl);
       if (typeof visualizer.setActiveVideos === 'function') {
@@ -1912,8 +1913,8 @@
       );
 
       visualizer = window.templateRegistry.activeTemplate;
-      if (els.topActiveDesignLabel && visualizer) {
-        els.topActiveDesignLabel.textContent = visualizer.name;
+      if (els.topPresetNameInput && visualizer) {
+        els.topPresetNameInput.value = visualizer.name;
       }
       applyTemplateModules(visualizer);
 
@@ -2073,30 +2074,80 @@
       });
     }
 
-    if (saveBtn) {
-      saveBtn.addEventListener('click', async () => {
-        const current = getActivePresetCopy();
-        const defaultTitle = current.meta?.name ? `${current.meta.name} (Custom)` : 'My Viz Preset';
-        const name = prompt('Save preset as:', defaultTitle);
-        if (!name || !name.trim()) return;
+    const BUILTIN_IDS = new Set([
+      'constellations',
+      'cinematic-minimal',
+      'anime-chord-flow',
+      'aura-spectrum',
+      'new_blank'
+    ]);
 
-        current.id = name.toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
-        current.meta = {
-          ...(current.meta || {}),
-          name: name.trim(),
-          title: name.trim(),
-          badge: 'Custom',
-          updatedAt: new Date().toISOString()
-        };
+    async function saveActivePreset(triggerBtn = null) {
+      const current = getActivePresetCopy();
+      const inputName = els.topPresetNameInput?.value.trim();
+      const chosenName = inputName || current.meta?.name || 'Custom Preset';
 
-        try {
-          if (window.presetService) {
-            const saved = await window.presetService.savePreset(current);
-            await hotReloadPreset(saved);
-            setStatus(`saved "${saved.meta.name}"`, 'success');
+      if (BUILTIN_IDS.has(current.id)) {
+        const slug = chosenName.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+        current.id = BUILTIN_IDS.has(slug) || !slug ? `custom_${Date.now()}` : slug;
+      }
+
+      current.meta = {
+        ...(current.meta || {}),
+        name: chosenName,
+        title: chosenName,
+        badge: 'Custom',
+        updatedAt: new Date().toISOString()
+      };
+
+      try {
+        if (window.presetService) {
+          const saved = await window.presetService.savePreset(current, previewCanvas);
+          await hotReloadPreset(saved);
+          setStatus(`saved "${saved.meta.name}"`, 'success');
+          if (triggerBtn) {
+            const orig = triggerBtn.textContent;
+            triggerBtn.textContent = 'saved ✓';
+            setTimeout(() => {
+              triggerBtn.textContent = orig;
+            }, 1200);
           }
-        } catch (err) {
-          setStatus(`save failed: ${err.message}`, 'error');
+        }
+      } catch (err) {
+        setStatus(`save failed: ${err.message}`, 'error');
+      }
+    }
+
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => saveActivePreset(saveBtn));
+    }
+
+    if (els.topSavePresetBtn) {
+      els.topSavePresetBtn.addEventListener('click', () => saveActivePreset(els.topSavePresetBtn));
+    }
+
+    if (els.topPresetNameInput) {
+      const commitInlineRename = () => {
+        const nextName = els.topPresetNameInput.value.trim();
+        if (!nextName) {
+          els.topPresetNameInput.value = visualizer?.name || 'preset';
+          return;
+        }
+        if (visualizer) {
+          visualizer.name = nextName;
+          visualizer.title = nextName;
+          if (visualizer.preset?.meta) {
+            visualizer.preset.meta.name = nextName;
+            visualizer.preset.meta.title = nextName;
+          }
+        }
+        if (presetLabel) presetLabel.textContent = nextName;
+      };
+      els.topPresetNameInput.addEventListener('change', commitInlineRename);
+      els.topPresetNameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          els.topPresetNameInput.blur();
         }
       });
     }
