@@ -1,6 +1,8 @@
-# Private project context docs (kept locally for agent memory, never pushed to public git)
+# local project context docs (never pushed to git)
 ARCHITECTURE.md
+architecture.md
 project.md
+project_preferences.md
 sideinfo.md
 
 # Dependencies

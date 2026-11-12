@@ -12,51 +12,73 @@
   }
 
   /**
-   * Extracts sample number, title, key, and BPM from filenames like:
-   * "#1 - meadows - bmaj - 132bpm.wav"
+   * Flexible sample filename parser.
+   * Extracts index number, title, musical key, and BPM from varied naming conventions.
+   * Returns null for missing metadata instead of hardcoding dummy values.
    */
   function parseSampleFilename(filename) {
-    const base = filename.replace(/\.[^/.]+$/, '');
-    let sampleNumber = '001';
-    let title = base;
-    let key = 'Bmaj';
-    let bpm = 132;
+    if (!filename || typeof filename !== 'string') {
+      return { sampleNumber: null, title: 'untitled', key: null, bpm: null };
+    }
+    const clean = filename.replace(/\.[^/.]+$/, '').trim();
+    let working = clean.replace(/_/g, ' ');
 
-    const numMatch = base.match(/#?\s*(\d+)/);
+    let sampleNumber = null;
+    let bpm = null;
+    let key = null;
+
+    // 1. Extract sample number (#1, 01 -, etc.)
+    const numMatch = working.match(/(?:^|\s)#\s*(\d{1,4})\b/) || working.match(/^(\d{1,3})\s*[-–—]\s*/);
     if (numMatch) {
       sampleNumber = String(parseInt(numMatch[1], 10)).padStart(3, '0');
+      working = working.replace(numMatch[0], ' ');
     }
 
-    const bpmMatch = base.match(/(\d{2,3}(?:\.\d+)?)\s*bpm/i);
-    if (bpmMatch) {
-      bpm = parseFloat(bpmMatch[1]);
+    // 2. Extract explicit bpm (132bpm, bpm 140, 140 bpm)
+    const bpmExplicitMatch = working.match(/\b(?:bpm\s*(\d{2,3}(?:\.\d+)?)|(\d{2,3}(?:\.\d+)?)\s*bpm)\b/i);
+    if (bpmExplicitMatch) {
+      bpm = parseFloat(bpmExplicitMatch[1] || bpmExplicitMatch[2]);
+      working = working.replace(bpmExplicitMatch[0], ' ');
     }
 
-    const keyMatch = base.match(/\b([A-G](?:#|b)?\s*(?:maj|min|m)?)\b/i);
-    if (keyMatch) {
-      const rawKey = keyMatch[1].replace(/\s+/g, '');
-      key = rawKey.charAt(0).toUpperCase() + rawKey.slice(1);
+    // 3. Extract musical key (C#, Bmaj, F# minor, Abm, Dmin, etc.)
+    const keyRegex = /\b([A-G][#b]?)(?:\s*(major|minor|maj|min|moll|dur|m))?(?=[\s\-–—]|$)/i;
+    const keyMatch = working.match(keyRegex);
+    if (keyMatch && (keyMatch[2] || keyMatch[1].length > 1 || /\b(key|scale)\b/i.test(working))) {
+      const root = keyMatch[1].charAt(0).toUpperCase() + keyMatch[1].slice(1).toLowerCase();
+      const modeRaw = (keyMatch[2] || '').toLowerCase();
+      const isMinor = modeRaw.startsWith('min') || modeRaw === 'm' || modeRaw === 'moll';
+      key = root + (isMinor ? 'min' : 'maj');
+      working = working.replace(keyMatch[0], ' ');
     }
 
-    const parts = base.split(/\s*-\s*/);
-    if (parts.length >= 2) {
-      const candidate = parts.find(
-        (p) =>
-          !/^#?\d+$/.test(p.trim()) &&
-          !/bpm/i.test(p) &&
-          !/^[A-G](#|b)?(maj|min|m)?$/i.test(p.trim())
-      );
-      if (candidate) title = candidate.trim();
+    // 4. Standalone bpm fallback (60 - 220)
+    if (bpm === null) {
+      const standaloneBpm = working.match(/\b([6-9]\d|1\d{2}|2[0-1]\d)\b/);
+      if (standaloneBpm) {
+        bpm = parseFloat(standaloneBpm[1]);
+        working = working.replace(standaloneBpm[0], ' ');
+      }
     }
 
-    return { sampleNumber, title, key, bpm };
+    // 5. Clean title
+    let title = working
+      .replace(/[-–—]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!title) {
+      title = clean.replace(/[-–—_]+/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    return { sampleNumber, title: title.toLowerCase(), key, bpm };
   }
 
   /**
    * Decodes an audio file in browser memory via Web Audio API,
    * calculates 240 RMS peaks, detects bar-aligned drop and impact times.
    */
-  async function analyzeAudioFileInBrowser(audioFile, bpm = 132) {
+  async function analyzeAudioFileInBrowser(audioFile, bpm = 120) {
     const arrayBuffer = await audioFile.arrayBuffer();
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     const audioCtx = new AudioContextClass();
@@ -201,7 +223,7 @@
   /**
    * Unzips and parses an Ableton Live Set (.als) in browser memory via DecompressionStream
    */
-  async function parseAlsFileInBrowser(alsFile, fallbackBpm = 132) {
+  async function parseAlsFileInBrowser(alsFile, fallbackBpm = 120) {
     let xmlText = '';
     try {
       if (window.DecompressionStream) {
@@ -301,7 +323,7 @@
   /**
    * Lightweight Standard MIDI File (SMF) parser in pure browser JavaScript
    */
-  async function parseMidiFileInBrowser(midiFile, fallbackBpm = 132) {
+  async function parseMidiFileInBrowser(midiFile, fallbackBpm = 120) {
     const buffer = await midiFile.arrayBuffer();
     const bytes = new Uint8Array(buffer);
     let pos = 0;
@@ -471,22 +493,26 @@
   }
 
   /**
-   * Extracts chord cut timestamps for harmony-synced anime cuts
+   * Extracts chord cut timestamps for harmony-synced anime cuts.
+   * Dynamically falls back to 50% midpoint if no dropTime is detected.
    */
-  function extractChordCutTimes(tracks, dropTime, bpm, duration) {
-    const minInterval = (60 / bpm) * 1.8;
+  function extractChordCutTimes(tracks = [], dropTime = null, bpm = 120, duration = 30.0) {
+    const effectiveBpm = bpm || 120;
+    const effectiveDur = duration || 30.0;
+    const effectiveDrop = (typeof dropTime === 'number' && !isNaN(dropTime)) ? dropTime : (effectiveDur * 0.5);
+    const minInterval = (60 / effectiveBpm) * 1.8;
 
     // 1. Bass / root note track
-    const rootTrack = tracks.find(
+    const rootTrack = (tracks || []).find(
       (t) =>
         /bass|808|sub|root/i.test(t.name) &&
         t.notes &&
-        t.notes.some((n) => n.time >= dropTime - 0.25)
+        t.notes.some((n) => n.time >= effectiveDrop - 0.25)
     );
     if (rootTrack) {
       const onsets = [];
       const notes = rootTrack.notes
-        .filter((n) => n.time >= dropTime - 0.25)
+        .filter((n) => n.time >= effectiveDrop - 0.25)
         .sort((a, b) => a.time - b.time);
       let lastTime = -999;
       for (const n of notes) {
@@ -496,23 +522,23 @@
         }
       }
       if (onsets.length >= 2) {
-        if (Math.abs(onsets[0] - dropTime) < 0.3) onsets[0] = dropTime;
-        else if (onsets[0] > dropTime + 0.3) onsets.unshift(dropTime);
+        if (Math.abs(onsets[0] - effectiveDrop) < 0.3) onsets[0] = effectiveDrop;
+        else if (onsets[0] > effectiveDrop + 0.3) onsets.unshift(effectiveDrop);
         return onsets;
       }
     }
 
     // 2. Chords / pad / keys
-    const chordTrack = tracks.find(
+    const chordTrack = (tracks || []).find(
       (t) =>
         /chord|harmony|keys|pad|piano|rhodes/i.test(t.name) &&
         t.notes &&
-        t.notes.some((n) => n.time >= dropTime - 0.25)
+        t.notes.some((n) => n.time >= effectiveDrop - 0.25)
     );
     if (chordTrack) {
       const onsets = [];
       const notes = chordTrack.notes
-        .filter((n) => n.time >= dropTime - 0.25)
+        .filter((n) => n.time >= effectiveDrop - 0.25)
         .sort((a, b) => a.time - b.time);
       let lastTime = -999;
       let lastMidi = -1;
@@ -524,19 +550,19 @@
         }
       }
       if (onsets.length >= 2) {
-        if (Math.abs(onsets[0] - dropTime) < 0.3) onsets[0] = dropTime;
-        else if (onsets[0] > dropTime + 0.3) onsets.unshift(dropTime);
+        if (Math.abs(onsets[0] - effectiveDrop) < 0.3) onsets[0] = effectiveDrop;
+        else if (onsets[0] > effectiveDrop + 0.3) onsets.unshift(effectiveDrop);
         return onsets;
       }
     }
 
     // 3. Fallback: 2-bar intervals
-    const barSec = (60 / bpm) * 4;
+    const barSec = (60 / effectiveBpm) * 4;
     const cuts = [];
-    for (let t = dropTime; t < duration - 0.5; t += barSec * 2) {
+    for (let t = effectiveDrop; t < effectiveDur - 0.5; t += barSec * 2) {
       cuts.push(Number(t.toFixed(3)));
     }
-    return cuts.length > 0 ? cuts : [dropTime];
+    return cuts.length > 0 ? cuts : [effectiveDrop];
   }
 
   // Export to window

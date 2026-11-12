@@ -86,8 +86,8 @@ Return ONLY raw JSON, with no markdown code blocks.`;
         instruction: prompt,
         currentPreset: currentPreset || null,
         projectContext: {
-          bpm: projectContext?.bpm || 132,
-          key: projectContext?.key || 'bmaj',
+          bpm: projectContext?.bpm || 120,
+          key: projectContext?.key || '',
           hasMidi: Boolean(projectContext?.midi?.hasMidi),
           trackNames: projectContext?.midi?.tracks?.map((t) => t.name) || [],
           clipCount: projectContext?.clips?.count || 0,
@@ -136,3 +136,4 @@ Return ONLY raw JSON, with no markdown code blocks.`;
 
   window.ByokAiProvider = ByokAiProvider;
 })();
+

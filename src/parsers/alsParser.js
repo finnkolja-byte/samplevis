@@ -46,7 +46,7 @@ function collectMidiClips(node, results = []) {
 /**
  * Parses an Ableton Live Set (.als) file (gzipped XML) and extracts BPM + all MIDI tracks and arrangement notes.
  */
-function parseAlsFile(filePath, fallbackBpm = 132) {
+function parseAlsFile(filePath, fallbackBpm = 120) {
   const rawBuffer = fs.readFileSync(filePath);
   let xmlString;
   try {
@@ -183,20 +183,23 @@ function parseAlsFile(filePath, fallbackBpm = 132) {
  * Extracts dynamic chord change timestamps after the drop.
  * Priority: Root bass tracks -> Chord/Pad tracks -> General note onsets -> 2-bar grid fallback.
  */
-function extractChordCutTimes(tracks = [], dropTime = 14.545, bpm = 132, duration = 29.09) {
-  const minInterval = (60 / bpm) * 1.5; // ~0.68s at 132bpm
+function extractChordCutTimes(tracks = [], dropTime = null, bpm = 120, duration = 30.0) {
+  const effectiveBpm = bpm || 120;
+  const effectiveDur = duration || 30.0;
+  const effectiveDrop = (typeof dropTime === 'number' && !isNaN(dropTime)) ? dropTime : (effectiveDur * 0.5);
+  const minInterval = (60 / effectiveBpm) * 1.5;
 
   // 1. Dedicated root/bass tracks (e.g. 16-Instrument Rack, Bass, Sub, Root)
-  const rootTrack = tracks.find(
+  const rootTrack = (tracks || []).find(
     (t) =>
       /bass|sub|rack|root/i.test(t.name) &&
       t.notes &&
-      t.notes.some((n) => n.time >= dropTime - 0.25)
+      t.notes.some((n) => n.time >= effectiveDrop - 0.25)
   );
   if (rootTrack) {
     const onsets = [];
     const notes = rootTrack.notes
-      .filter((n) => n.time >= dropTime - 0.25)
+      .filter((n) => n.time >= effectiveDrop - 0.25)
       .sort((a, b) => a.time - b.time);
     let lastTime = -999;
     for (const n of notes) {
@@ -206,23 +209,23 @@ function extractChordCutTimes(tracks = [], dropTime = 14.545, bpm = 132, duratio
       }
     }
     if (onsets.length >= 2) {
-      if (Math.abs(onsets[0] - dropTime) < 0.3) onsets[0] = dropTime;
-      else if (onsets[0] > dropTime + 0.3) onsets.unshift(dropTime);
+      if (Math.abs(onsets[0] - effectiveDrop) < 0.3) onsets[0] = effectiveDrop;
+      else if (onsets[0] > effectiveDrop + 0.3) onsets.unshift(effectiveDrop);
       return onsets;
     }
   }
 
   // 2. Chord / harmony / pad / keys / piano tracks
-  const chordTrack = tracks.find(
+  const chordTrack = (tracks || []).find(
     (t) =>
       /chord|harmony|keys|pad|piano|rhodes/i.test(t.name) &&
       t.notes &&
-      t.notes.some((n) => n.time >= dropTime - 0.25)
+      t.notes.some((n) => n.time >= effectiveDrop - 0.25)
   );
   if (chordTrack) {
     const onsets = [];
     const notes = chordTrack.notes
-      .filter((n) => n.time >= dropTime - 0.25)
+      .filter((n) => n.time >= effectiveDrop - 0.25)
       .sort((a, b) => a.time - b.time);
     let lastTime = -999;
     let lastMidi = -1;
@@ -234,19 +237,19 @@ function extractChordCutTimes(tracks = [], dropTime = 14.545, bpm = 132, duratio
       }
     }
     if (onsets.length >= 2) {
-      if (Math.abs(onsets[0] - dropTime) < 0.3) onsets[0] = dropTime;
-      else if (onsets[0] > dropTime + 0.3) onsets.unshift(dropTime);
+      if (Math.abs(onsets[0] - effectiveDrop) < 0.3) onsets[0] = effectiveDrop;
+      else if (onsets[0] > effectiveDrop + 0.3) onsets.unshift(effectiveDrop);
       return onsets;
     }
   }
 
   // 3. Fallback: 2-bar intervals after drop
-  const barSec = (60 / bpm) * 4;
+  const barSec = (60 / effectiveBpm) * 4;
   const cuts = [];
-  for (let t = dropTime; t < duration - 0.5; t += barSec * 2) {
+  for (let t = effectiveDrop; t < effectiveDur - 0.5; t += barSec * 2) {
     cuts.push(Number(t.toFixed(3)));
   }
-  return cuts.length > 0 ? cuts : [dropTime];
+  return cuts.length > 0 ? cuts : [effectiveDrop];
 }
 
 module.exports = {

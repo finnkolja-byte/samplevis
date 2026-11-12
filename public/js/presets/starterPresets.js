@@ -180,8 +180,10 @@
         const controls = frame.controls || {};
         const project = state.project || {};
         const tCurrent = frame.audio.time;
-        const dur = frame.audio.duration || 29.09;
-        const dropTime = (state.dropTime !== undefined) ? state.dropTime : 14.545;
+        const dur = frame.audio.duration || 30.0;
+        const dropTime = (state.dropTime !== undefined && state.dropTime !== null)
+          ? state.dropTime
+          : (project.dropTime !== undefined && project.dropTime !== null ? project.dropTime : dur * 0.5);
         const isPostDrop = tCurrent >= dropTime;
         const dropAge = isPostDrop ? tCurrent - dropTime : -1;
         const energy = frame.audio.rms || 0.5;
@@ -359,11 +361,20 @@
         ctx.textAlign = 'center';
         ctx.font = '500 24px "Space Grotesk", sans-serif';
         ctx.fillStyle = '#f0f7f2';
-        ctx.fillText(\`[#\${project.sampleNumber || '001'} · \${project.title || 'meadows'}]\`, width * 0.5, rollTop - 34);
+        const numPart = project.sampleNumber ? \`#\${project.sampleNumber} · \` : '';
+        const titlePart = project.title || 'untitled';
+        ctx.fillText(\`[\${numPart}\${titlePart}]\`, width * 0.5, rollTop - 34);
 
         ctx.font = '400 16px "IBM Plex Mono", monospace';
         ctx.fillStyle = '#9daea8';
-        ctx.fillText(\`\${project.bpm || 132} BPM · \${(project.key || 'BMAJ').toUpperCase()} · \${project.brand || 'aesttc'}\`, width * 0.5, rollTop - 12);
+        const metaList = [
+          project.bpm ? \`\${project.bpm} BPM\` : null,
+          project.key ? project.key.toUpperCase() : null,
+          project.brand || null
+        ].filter(Boolean);
+        if (metaList.length > 0) {
+          ctx.fillText(metaList.join(' · '), width * 0.5, rollTop - 12);
+        }
 
         ctx.restore();
       `
@@ -625,12 +636,18 @@
         ctx.textAlign = 'left';
         ctx.font = '600 22px "Space Grotesk", sans-serif';
         ctx.fillStyle = '#f0f7f2';
-        ctx.fillText(\`\${(project.title || 'meadows').toUpperCase()}\`, 60, height - barH * 0.5 + 8);
+        ctx.fillText(\`\${(project.title || 'untitled').toUpperCase()}\`, 60, height - barH * 0.5 + 8);
 
         ctx.textAlign = 'right';
         ctx.font = '400 16px "IBM Plex Mono", monospace';
         ctx.fillStyle = '#9daea8';
-        ctx.fillText(\`\${project.bpm || 132}BPM // \${(project.key || 'bmaj').touppercase()}\`, width - 60, height - barh * 0.5 + 8);
+        const rightMeta = [
+          project.bpm ? \`\${project.bpm}BPM\` : null,
+          project.key ? project.key.toUpperCase() : null
+        ].filter(Boolean).join(' // ');
+        if (rightMeta) {
+          ctx.fillText(rightMeta, width - 60, height - barH * 0.5 + 8);
+        }
         ctx.restore();
       `
     },
@@ -752,7 +769,7 @@
     frontUiBox: {
       initScript: `
         state.project = project;
-        state.chordNames = ['i - bmaj7', 'vi - g#m7', 'iv - eadd9', 'v - f#sus4'];
+        state.chordNames = (project && project.chords && project.chords.length) ? project.chords : [];
         state.currentChordIdx = 0;
       `,
 
@@ -760,8 +777,8 @@
         const controls = frame.controls || {};
         const project = state.project || {};
         const t = frame.audio.time;
-        const dur = frame.audio.duration || 29.09;
-        const bpm = project.bpm || 132;
+        const dur = frame.audio.duration || 30.0;
+        const bpm = project.bpm || 120;
         const secPerBeat = 60 / bpm;
         const barSec = secPerBeat * 4;
 
@@ -779,28 +796,46 @@
         ctx.fillText(\`BAR \${String(currentBar).padStart(2, '0')}.\${currentBeat}\`, 60, 120);
 
         // subtitle key & bpm
-        ctx.font = '400 18px "IBM Plex Mono", monospace';
-        ctx.fillStyle = '#83ca90';
-        ctx.fillText(\`\${(project.key || 'BMAJ').toUpperCase()} · \${bpm} BPM\`, 60, 155);
+        const subMeta = [
+          project.key ? project.key.toUpperCase() : null,
+          project.bpm ? \`\${project.bpm} BPM\` : null
+        ].filter(Boolean).join(' · ');
+        if (subMeta) {
+          ctx.font = '400 18px "IBM Plex Mono", monospace';
+          ctx.fillStyle = '#83ca90';
+          ctx.fillText(subMeta, 60, 155);
+        }
 
         // 2. active chord indicator
         const cuts = project.chordCutTimes || [];
-        let chordIdx = 0;
+        let chordIdx = -1;
         for (let i = cuts.length - 1; i >= 0; i--) {
           if (t >= cuts[i]) {
-            chordIdx = i % state.chordNames.length;
+            chordIdx = i;
             break;
           }
         }
 
-        ctx.textAlign = 'right';
-        ctx.font = '500 24px "IBM Plex Mono", monospace';
-        ctx.fillStyle = '#f0f7f2';
-        ctx.fillText(state.chordNames[chordIdx] || 'CHORD CUT', width - 60, 120);
+        let chordDisplay = '';
+        if (state.chordNames && state.chordNames.length > 0 && chordIdx >= 0) {
+          chordDisplay = state.chordNames[chordIdx % state.chordNames.length];
+        } else if (frame.midi && frame.midi.activeNotes && frame.midi.activeNotes.length > 0) {
+          const names = Array.from(new Set(frame.midi.activeNotes.map((n) => n.name.replace(/\\d+$/, ''))));
+          chordDisplay = names.slice(0, 4).join(' ');
+        } else if (chordIdx >= 0) {
+          chordDisplay = \`HIT \${chordIdx + 1}\`;
+        }
 
-        ctx.font = '400 16px "IBM Plex Mono", monospace';
-        ctx.fillStyle = '#9daea8';
-        ctx.fillText('DYNAMIC HARMONY SYNC', width - 60, 155);
+        if (chordDisplay) {
+          ctx.textAlign = 'right';
+          ctx.font = '500 24px "IBM Plex Mono", monospace';
+          ctx.fillStyle = '#f0f7f2';
+          ctx.fillText(chordDisplay.toUpperCase(), width - 60, 120);
+
+          ctx.font = '400 16px "IBM Plex Mono", monospace';
+          ctx.fillStyle = '#9daea8';
+          ctx.fillText('DYNAMIC HARMONY SYNC', width - 60, 155);
+        }
 
         // 3. beat pulse ring accent
         const beatFrac = (t % secPerBeat) / secPerBeat;

@@ -3,49 +3,66 @@ const path = require('path');
 const { midiToNoteName } = require('./alsParser');
 
 /**
- * Extracts sample number, title, key, and BPM from filenames like:
- * "#1 - meadows - bmaj - 132bpm.wav"
+ * flexible sample filename parser.
+ * extracts index number, title, musical key, and bpm from varied naming conventions.
+ * returns null for missing metadata instead of hardcoding dummy values.
  */
 function parseSampleFilename(filename) {
-  const base = path.basename(filename, path.extname(filename));
-  let sampleNumber = '001';
-  let title = base;
-  let key = 'Bmaj';
-  let bpm = 132;
+  if (!filename || typeof filename !== 'string') {
+    return { sampleNumber: null, title: 'untitled', key: null, bpm: null };
+  }
+  const clean = path.basename(filename, path.extname(filename)).trim();
+  let working = clean.replace(/_/g, ' ');
 
-  const numMatch = base.match(/#?\s*(\d+)/);
+  let sampleNumber = null;
+  let bpm = null;
+  let key = null;
+
+  // 1. extract sample number
+  const numMatch = working.match(/(?:^|\s)#\s*(\d{1,4})\b/) || working.match(/^(\d{1,3})\s*[-–—]\s*/);
   if (numMatch) {
     sampleNumber = String(parseInt(numMatch[1], 10)).padStart(3, '0');
+    working = working.replace(numMatch[0], ' ');
   }
 
-  const bpmMatch = base.match(/(\d{2,3}(?:\.\d+)?)\s*bpm/i);
-  if (bpmMatch) {
-    bpm = parseFloat(bpmMatch[1]);
+  // 2. extract explicit bpm
+  const bpmExplicitMatch = working.match(/\b(?:bpm\s*(\d{2,3}(?:\.\d+)?)|(\d{2,3}(?:\.\d+)?)\s*bpm)\b/i);
+  if (bpmExplicitMatch) {
+    bpm = parseFloat(bpmExplicitMatch[1] || bpmExplicitMatch[2]);
+    working = working.replace(bpmExplicitMatch[0], ' ');
   }
 
-  const keyMatch = base.match(/\b([A-G](?:#|b)?\s*(?:maj|min|m)?)\b/i);
-  if (keyMatch) {
-    const rawKey = keyMatch[1].replace(/\s+/g, '');
-    key = rawKey.charAt(0).toUpperCase() + rawKey.slice(1);
+  // 3. extract musical key
+  const keyRegex = /\b([A-G][#b]?)(?:\s*(major|minor|maj|min|moll|dur|m))?(?=[\s\-–—]|$)/i;
+  const keyMatch = working.match(keyRegex);
+  if (keyMatch && (keyMatch[2] || keyMatch[1].length > 1 || /\b(key|scale)\b/i.test(working))) {
+    const root = keyMatch[1].charAt(0).toUpperCase() + keyMatch[1].slice(1).toLowerCase();
+    const modeRaw = (keyMatch[2] || '').toLowerCase();
+    const isMinor = modeRaw.startsWith('min') || modeRaw === 'm' || modeRaw === 'moll';
+    key = root + (isMinor ? 'min' : 'maj');
+    working = working.replace(keyMatch[0], ' ');
   }
 
-  const parts = base.split(/\s*-\s*/);
-  if (parts.length >= 2) {
-    const candidate = parts.find(
-      (p) =>
-        !/^#?\d+$/.test(p.trim()) &&
-        !/bpm/i.test(p) &&
-        !/^[A-G](#|b)?(maj|min|m)?$/i.test(p.trim())
-    );
-    if (candidate) title = candidate.trim();
+  // 4. standalone bpm fallback (60 - 220)
+  if (bpm === null) {
+    const standaloneBpm = working.match(/\b([6-9]\d|1\d{2}|2[0-1]\d)\b/);
+    if (standaloneBpm) {
+      bpm = parseFloat(standaloneBpm[1]);
+      working = working.replace(standaloneBpm[0], ' ');
+    }
   }
 
-  return {
-    sampleNumber,
-    title,
-    key,
-    bpm
-  };
+  // 5. clean title
+  let title = working
+    .replace(/[-–—]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!title) {
+    title = clean.replace(/[-–—_]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  return { sampleNumber, title: title.toLowerCase(), key, bpm };
 }
 
 /**
@@ -54,14 +71,14 @@ function parseSampleFilename(filename) {
  * 2. Auto-detect the "Explosion of Prettiness" drop timestamp aligned to bar boundaries
  * 3. Provide an audio-to-MIDI onset/pitch fallback if no .mid or .als is supplied
  */
-function analyzeWavFile(filePath, bpm = 132) {
+function analyzeWavFile(filePath, bpm = 120) {
   const buf = fs.readFileSync(filePath);
   if (buf.length < 44 || buf.toString('ascii', 0, 4) !== 'RIFF') {
     return {
-      duration: 29.09,
-      dropTime: Number(((32 * 60) / bpm).toFixed(3)),
-      dropBar: 9,
-      peaks: new Array(160).fill(0.4),
+      duration: 0,
+      dropTime: 0,
+      dropBar: 1,
+      peaks: new Array(160).fill(0),
       fallbackNotes: []
     };
   }

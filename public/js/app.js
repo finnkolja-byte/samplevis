@@ -150,19 +150,22 @@
   function updateMetadataToVisualizer() {
     if (!state.project) return;
     state.project.brand = (els.inputBrand.value.trim() || 'aesttc').toLowerCase();
-    state.project.sampleNumber = els.inputNumber.value.trim() || '001';
-    state.project.title = (els.inputTitle.value.trim() || 'meadows').toLowerCase();
-    state.project.bpm = parseFloat(els.inputBpm.value) || 132;
-    state.project.key = (els.inputKey.value.trim() || 'bmaj').toLowerCase();
-    visualizer.project.brand = state.project.brand;
-    visualizer.project.sampleNumber = state.project.sampleNumber;
-    visualizer.project.title = state.project.title;
-    visualizer.project.bpm = state.project.bpm;
-    visualizer.project.key = state.project.key;
+    state.project.sampleNumber = els.inputNumber.value.trim();
+    state.project.title = (els.inputTitle.value.trim() || 'untitled').toLowerCase();
+    state.project.bpm = parseFloat(els.inputBpm.value) || 120;
+    state.project.key = (els.inputKey.value.trim() || '').toLowerCase();
+    if (visualizer && visualizer.project) {
+      visualizer.project.brand = state.project.brand;
+      visualizer.project.sampleNumber = state.project.sampleNumber;
+      visualizer.project.title = state.project.title;
+      visualizer.project.bpm = state.project.bpm;
+      visualizer.project.key = state.project.key;
+    }
 
     if (els.headerPreviewPill) {
-      const num = String(state.project.sampleNumber || '1').replace(/^#?\s*0*/, '') || '1';
-      els.headerPreviewPill.textContent = `[#${num} - ${state.project.title} · ${state.project.brand}]`;
+      const num = state.project.sampleNumber ? `#${String(state.project.sampleNumber).replace(/^#?\s*0*/, '') || '1'} - ` : '';
+      els.headerPreviewPill.textContent = `[${num}${state.project.title || 'untitled'} · ${state.project.brand || 'aesttc'}]`;
+    }
     }
   }
 
@@ -195,9 +198,17 @@
     }
   }
 
+  function getProjectDropTime() {
+    const p = state.project;
+    if (!p) return 15.0;
+    return (typeof p.dropTime === 'number' && !isNaN(p.dropTime))
+      ? p.dropTime
+      : ((p.duration || 30.0) * 0.5);
+  }
+
   function getActiveVideoForTime(t) {
     if (!state.project || state.selectedClipIds.length === 0) return null;
-    const dropTime = state.project.dropTime || 14.545;
+    const dropTime = getProjectDropTime();
     if (t < dropTime) return null;
 
     const cutMode = visualizer.params.cutMode || 'chord';
@@ -223,7 +234,7 @@
       }
       poolIdx = cutIdx % Math.min(videoPool.length, state.selectedClipIds.length);
     } else {
-      const secPerBar = (60 / (state.project.bpm || 132)) * 4;
+      const secPerBar = (60 / (state.project.bpm || 120)) * 4;
       const barsPerCut = cutMode === '2bar' ? 2 : 4;
       const cutLenSec = secPerBar * barsPerCut;
       const cutIdx = Math.floor(Math.max(0, t - dropTime) / cutLenSec);
@@ -235,7 +246,7 @@
 
   function getClipTimeForTimestamp(t, activeVid) {
     if (!state.project || !activeVid) return 0;
-    const dropTime = state.project.dropTime || 14.545;
+    const dropTime = getProjectDropTime();
     if (t < dropTime) return 0;
 
     const dur = activeVid.duration || 6.0;
@@ -262,7 +273,7 @@
         else break;
       }
     } else if (cutMode === '2bar' || cutMode === '4bar') {
-      const secPerBar = (60 / (state.project.bpm || 132)) * 4;
+      const secPerBar = (60 / (state.project.bpm || 120)) * 4;
       const barsPerCut = cutMode === '2bar' ? 2 : 4;
       const cutLenSec = secPerBar * barsPerCut;
       const cutIdx = Math.floor(Math.max(0, t - dropTime) / cutLenSec);
@@ -493,7 +504,9 @@
     const peaks = state.project?.peaks || [];
     if (peaks.length === 0) return;
 
-    const dropRatio = (state.project.dropTime || 14.545) / (state.project.duration || 29.09);
+    const dur = state.project?.duration || 30.0;
+    const dropT = getProjectDropTime();
+    const dropRatio = dropT / dur;
     const barW = W / peaks.length;
 
     peaks.forEach((p, idx) => {
@@ -516,7 +529,6 @@
       : null;
 
     if (cuts && cuts.length > 0) {
-      const dur = state.project.duration || 29.09;
       ctx.fillStyle = 'rgba(160, 228, 175, 0.75)';
       cuts.forEach((ct) => {
         const cx = (ct / dur) * W;
@@ -529,9 +541,9 @@
 
   function updateTimelineMarkers() {
     if (!state.project) return;
-    const dur = state.project.duration || 29.09;
-    const dropT = state.project.dropTime || 14.545;
-    const secPerBar = (60 / (state.project.bpm || 132)) * 4;
+    const dur = state.project.duration || 30.0;
+    const dropT = getProjectDropTime();
+    const secPerBar = (60 / (state.project.bpm || 120)) * 4;
     const dropBar = Math.round(dropT / secPerBar) + 1;
     state.project.dropBar = dropBar;
     visualizer.project.dropBar = dropBar;
@@ -546,9 +558,9 @@
   }
 
   function updateTransportReadouts(t) {
-    const dur = state.project?.duration || 29.09;
+    const dur = state.project?.duration || 30.0;
     els.timeReadout.textContent = `${formatTime(t)} / ${formatTime(dur)}`;
-    const bpm = state.project?.bpm || 132;
+    const bpm = state.project?.bpm || 120;
     const totalBeats = t * (bpm / 60);
     const bar = Math.floor(totalBeats / 4) + 1;
     const beat = Math.floor(totalBeats % 4) + 1;
@@ -563,15 +575,23 @@
     if (clips) state.clips = clips;
 
     els.inputBrand.value = (project.brand || 'aesttc').toLowerCase();
-    els.inputNumber.value = project.sampleNumber || '001';
-    els.inputTitle.value = (project.title || 'meadows').toLowerCase();
-    els.inputBpm.value = project.bpm || 132;
-    els.inputKey.value = (project.key || 'bmaj').toLowerCase();
-    els.uploadStatusText.textContent = `active: #${project.sampleNumber} - ${project.title} (${project.bpm}bpm · ${project.key})`;
+    els.inputNumber.value = project.sampleNumber || '';
+    els.inputTitle.value = (project.title || 'untitled').toLowerCase();
+    els.inputBpm.value = project.bpm || 120;
+    els.inputKey.value = (project.key || '').toLowerCase();
+
+    const metaParts = [];
+    if (project.sampleNumber) metaParts.push(`#${project.sampleNumber}`);
+    if (project.title) metaParts.push(project.title);
+    const subParts = [];
+    if (project.bpm) subParts.push(`${project.bpm}bpm`);
+    if (project.key) subParts.push(project.key);
+    const subStr = subParts.length ? ` (${subParts.join(' · ')})` : '';
+    els.uploadStatusText.textContent = `active: ${metaParts.join(' - ')}${subStr}`;
 
     if (els.headerPreviewPill) {
-      const num = String(project.sampleNumber || '1').replace(/^#?\s*0*/, '') || '1';
-      els.headerPreviewPill.textContent = `[#${num} - ${project.title} · ${project.brand}]`;
+      const num = project.sampleNumber ? `#${String(project.sampleNumber).replace(/^#?\s*0*/, '') || '1'} - ` : '';
+      els.headerPreviewPill.textContent = `[${num}${project.title || 'untitled'} · ${project.brand || 'aesttc'}]`;
     }
 
     visualizer.setProject(project);
@@ -621,7 +641,7 @@
       }
       updateTransportReadouts(state.currentTime);
       const activeVid = getActiveVideoForTime(state.currentTime);
-      if (activeVid && state.currentTime >= (state.project?.dropTime || 14.545)) {
+      if (activeVid && state.currentTime >= getProjectDropTime()) {
         if (state.lastActiveVid !== activeVid) {
           state.lastActiveVid = activeVid;
           const clipTime = getClipTimeForTimestamp(state.currentTime, activeVid);
@@ -664,7 +684,7 @@
   });
 
   els.jumpDropBtn.addEventListener('click', () => {
-    const dropT = state.project?.dropTime || 14.545;
+    const dropT = getProjectDropTime();
     const target = Math.max(0, dropT - 2.2);
     audioEl.currentTime = target;
     state.currentTime = target;
@@ -685,7 +705,7 @@
     const ratio = Math.max(0.05, Math.min(0.92, (e.clientX - rect.left) / rect.width));
     const rawTime = ratio * state.project.duration;
     // Snap softly to half-bar boundaries if Shift isn't held
-    const secPerBar = (60 / (state.project.bpm || 132)) * 4;
+    const secPerBar = (60 / (state.project.bpm || 120)) * 4;
     const snapped = e.shiftKey ? rawTime : Math.round(rawTime / (secPerBar * 0.5)) * (secPerBar * 0.5);
     state.project.dropTime = Number(snapped.toFixed(3));
     visualizer.project.dropTime = state.project.dropTime;
@@ -977,7 +997,13 @@
         }
       }
 
-      const effectiveBpm = midiData?.bpm || meta.bpm;
+      const effectiveBpm = midiData?.bpm || meta.bpm || parseFloat(els.inputBpm.value) || 120;
+      const effectiveKey = meta.key ? meta.key.toLowerCase() : (els.inputKey.value ? els.inputKey.value.toLowerCase() : '');
+      const effectiveTitle = (meta.title && meta.title !== 'untitled')
+        ? meta.title.toLowerCase()
+        : audioFile.name.replace(/\.[^/.]+$/, '').toLowerCase();
+      const effectiveSampleNum = meta.sampleNumber || (els.inputNumber.value ? els.inputNumber.value.trim() : '');
+
       const audioAnalysis = await window.clientAnalyzer.analyzeAudioFileInBrowser(audioFile, effectiveBpm);
 
       if (!midiData || !midiData.tracks || midiData.tracks.length === 0) {
@@ -1011,9 +1037,9 @@
       const project = {
         id: `sample_${Date.now()}`,
         brand: (els.inputBrand.value || 'aesttc').toLowerCase(),
-        sampleNumber: meta.sampleNumber,
-        title: meta.title.toLowerCase(),
-        key: meta.key.toLowerCase(),
+        sampleNumber: effectiveSampleNum,
+        title: effectiveTitle,
+        key: effectiveKey,
         bpm: effectiveBpm,
         audioUrl: localAudioUrl,
         duration: audioAnalysis.duration,
@@ -1027,7 +1053,6 @@
       };
 
       loadProjectIntoStudio(project, null, matchedClips);
-      els.uploadStatusText.textContent = `ACTIVE: #${project.sampleNumber} - ${project.title} (${project.bpm}BPM · ${project.key.toUpperCase()})`;
     } catch (err) {
       console.error('Client analysis error:', err);
       els.uploadStatusText.textContent = `ERROR: ${err.message}`;
@@ -1231,7 +1256,7 @@
     for (let f = 0; f < totalFrames; f++) {
       const t = f / fps;
       const activeVid = getActiveVideoForTime(t);
-      if (activeVid && t >= (state.project.dropTime || 14.545)) {
+      if (activeVid && t >= getProjectDropTime()) {
         const clipTime = getClipTimeForTimestamp(t, activeVid);
         await seekVideoElement(activeVid, clipTime);
       }
@@ -1341,7 +1366,9 @@
   function finishClientRender(blob, ext) {
     state.lastRenderedBlob = blob;
     const cleanTitle = (state.project?.title || 'sample').replace(/[^a-z0-9_-]+/gi, '_');
-    state.lastRenderedFilename = `${state.project?.sampleNumber || '001'}_${cleanTitle}_${state.project?.bpm || 132}bpm${ext}`;
+    const numPart = state.project?.sampleNumber ? `${state.project.sampleNumber}_` : '';
+    const bpmPart = state.project?.bpm ? `_${state.project.bpm}bpm` : '';
+    state.lastRenderedFilename = `${numPart}${cleanTitle}${bpmPart}${ext}`;
 
     const url = URL.createObjectURL(blob);
     els.downloadLastRenderBtn.href = url;
@@ -1362,7 +1389,13 @@
     els.scheduleDateTime.value = defaultDate.toISOString().slice(0, 16);
 
     const p = state.project;
-    els.scheduleCaption.value = `[${(p.brand || 'aesttc').toLowerCase()} - ${(p.title || 'meadows').toLowerCase()}] · ${p.bpm} bpm · ${(p.key || 'bmaj').toLowerCase()}\n\n#${(p.brand || 'aesttc').toLowerCase()} #samplepack #melancholic #loops #musicproducer #animeaesthetic #guitarloops #pianoloops`;
+    const title = (p.title || 'sample').toLowerCase();
+    const brand = (p.brand || 'aesttc').toLowerCase();
+    const metaParts = [];
+    if (p.bpm) metaParts.push(`${p.bpm} bpm`);
+    if (p.key) metaParts.push(p.key.toLowerCase());
+    const metaStr = metaParts.length ? ` · ${metaParts.join(' · ')}` : '';
+    els.scheduleCaption.value = `[${brand} - ${title}]${metaStr}\n\n#${brand} #samplepack #melancholic #loops #musicproducer #animeaesthetic #guitarloops #pianoloops`;
 
     refreshPostizStatus();
   }

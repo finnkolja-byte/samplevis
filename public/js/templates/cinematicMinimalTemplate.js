@@ -82,8 +82,11 @@
     }
 
     getSpeedRampInfo(time) {
-      const dropTime = this.project?.dropTime || 14.545;
-      const bpm = this.project?.bpm || 132;
+      const dur = this.project?.duration || 30.0;
+      const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
+        ? this.project.dropTime
+        : (dur * 0.5);
+      const bpm = this.project?.bpm || 120;
       const secPerBeat = 60 / bpm;
 
       if (!this.params.speedRamping || time < dropTime) {
@@ -136,9 +139,11 @@
       const W = 1080;
       const H = 1920;
       const proj = this.project || {};
-      const dropTime = proj.dropTime || 14.545;
-      const dur = proj.duration || 29.09;
-      const bpm = proj.bpm || 132;
+      const dur = proj.duration || 30.0;
+      const dropTime = (typeof proj.dropTime === 'number' && !isNaN(proj.dropTime))
+        ? proj.dropTime
+        : (dur * 0.5);
+      const bpm = proj.bpm || 120;
       const isPostDrop = time >= dropTime;
       const dSinceDrop = Math.max(0, time - dropTime);
 
@@ -282,11 +287,11 @@
 
     renderTypography(ctx, time, isPostDrop, dSinceDrop, viewY, viewH, W, H) {
       const proj = this.project || {};
-      const title = (proj.title || 'meadows').toUpperCase();
-      const num = String(proj.sampleNumber || '001').replace(/^#?\s*0*/, '').padStart(2, '0');
-      const bpm = proj.bpm || 132;
-      const key = (proj.key || 'Bmaj').toUpperCase();
-      const brand = (proj.brand || 'aesttc').toUpperCase();
+      const title = (proj.title || 'untitled').toUpperCase();
+      const num = proj.sampleNumber ? String(proj.sampleNumber).replace(/^#?\s*0*/, '').padStart(2, '0') : '';
+      const bpm = proj.bpm || 120;
+      const key = (proj.key || '').toUpperCase();
+      const brand = (proj.brand || '').toUpperCase();
       const accent = this.params.accentColor || '#38bdf8';
 
       ctx.save();
@@ -370,10 +375,10 @@
 
     renderLetterboxes(ctx, time, viewY, viewH, lbH, W, H, isPostDrop) {
       const proj = this.project || {};
-      const num = String(proj.sampleNumber || '001').replace(/^#?\s*0*/, '').padStart(2, '0');
-      const brand = (proj.brand || 'aesttc').toUpperCase();
-      const dur = proj.duration || 29.09;
-      const bpm = proj.bpm || 132;
+      const num = proj.sampleNumber ? String(proj.sampleNumber).replace(/^#?\s*0*/, '').padStart(2, '0') : '';
+      const brand = (proj.brand || '').toUpperCase();
+      const dur = proj.duration || 30.0;
+      const bpm = proj.bpm || 120;
       const accent = this.params.accentColor || '#38bdf8';
 
       ctx.save();

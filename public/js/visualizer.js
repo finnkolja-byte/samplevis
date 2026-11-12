@@ -43,13 +43,13 @@ class SampleVisualizer {
     // Project state (lowercase aesthetic)
     this.project = {
       brand: 'aesttc',
-      sampleNumber: '001',
-      title: 'meadows',
-      bpm: 132,
-      key: 'bmaj',
-      duration: 29.09,
-      dropTime: 14.545,
-      dropBar: 9,
+      sampleNumber: '',
+      title: 'untitled',
+      bpm: 120,
+      key: '',
+      duration: 30.0,
+      dropTime: 15.0,
+      dropBar: 1,
       peaks: [],
       chordCutTimes: [],
       impactTimes: []
@@ -101,10 +101,10 @@ class SampleVisualizer {
     if (!this.params.seamlessLoop) {
       return { inTransition: false, progress: 0, loopFade: 1.0, clipFade: 1.0, loopWin: 0.85 };
     }
-    const dur = this.project?.duration || 29.09;
-    const bpm = parseFloat(this.project?.bpm) || 132;
+    const dur = this.project?.duration || 30.0;
+    const bpm = parseFloat(this.project?.bpm) || 120;
     const secPerBeat = 60 / bpm;
-    // 2-beat outro turnaround window (~0.85s to 1.0s at 132 bpm)
+    // 2-beat outro turnaround window
     const loopWin = this.params.loopTransitionDuration || Math.max(0.75, Math.min(1.2, secPerBeat * 2));
     if (t > dur - loopWin) {
       const p = Math.max(0, Math.min(1.0, (t - (dur - loopWin)) / loopWin));
@@ -125,7 +125,10 @@ class SampleVisualizer {
   }
 
   _getPreDropLift(t) {
-    const dropTime = this.project?.dropTime || 14.545;
+    const durProj = this.project?.duration || 30.0;
+    const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
+      ? this.project.dropTime
+      : (durProj * 0.5);
     const dur = this.params?.preDropDuration || 2.2;
     if (t >= dropTime - dur && t < dropTime) {
       const p = (t - (dropTime - dur)) / dur;
@@ -212,7 +215,10 @@ class SampleVisualizer {
 
   rebuildNoteNodes() {
     const notes = [];
-    const dropTime = this.project.dropTime || 14.545;
+    const dur = this.project?.duration || 30.0;
+  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
+    ? this.project.dropTime
+    : (dur * 0.5);
     const duration = this.project.duration || 29.09;
 
     for (const track of this.rawTracks) {
@@ -266,7 +272,7 @@ class SampleVisualizer {
     // Build organic star trajectories for each note
     // Smooth, premium crystallization + unique warm/yellow bloom shade for each star
     const pitchSpan = Math.max(1, this.maxPitch - this.minPitch);
-    const bpm = this.project.bpm || 132;
+    const bpm = this.project.bpm || 120;
     const secPerBar = (60 / bpm) * 4;
     const startY = 50; // clean margin from the very top of the canvas
     const endY = this.pianoRollTop - 110; // right above track info & piano roll (~1280px)
@@ -628,8 +634,11 @@ this.starSeeds = seeds;
    * Computes all chord change markers across the entire track (intro + drop).
    */
   _computeChordTimelineMarkers() {
-    const bpm = this.project.bpm || 132;
-    const dropTime = this.project.dropTime || 14.545;
+    const bpm = this.project.bpm || 120;
+    const dur = this.project?.duration || 30.0;
+  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
+    ? this.project.dropTime
+    : (dur * 0.5);
     const duration = this.project.duration || 29.09;
     const notePool = this._getAllProjectNotes();
     if (notePool.length === 0) {
@@ -707,7 +716,10 @@ _getStarState(seed, t, driftMult) {
   if (age < 0) return null;
 
   const dAge = age * driftMult;
-  const dropTime = this.project.dropTime || 14.545;
+  const dur = this.project?.duration || 30.0;
+  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
+    ? this.project.dropTime
+    : (dur * 0.5);
   const isPreDropNote = seed.note.time < dropTime;
 
   // Pre-drop stars accelerate upwards and swoosh out before the drop pulse
@@ -817,7 +829,10 @@ _getEffectiveTimeOfDay(t) {
     return baseTod;
   }
 
-  const dropTime = this.project?.dropTime || 14.545;
+  const dur = this.project?.duration || 30.0;
+  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
+    ? this.project.dropTime
+    : (dur * 0.5);
   const isPostDrop = tCurrent >= dropTime;
   const sunsetTarget = 40; // moody night-side dusk (subtle violet-indigo twilight, avoiding bright orange clip tint)
 
@@ -938,7 +953,10 @@ renderFrame(tCurrent, activeVideoFrame = null) {
   this._tCurrent = tCurrent;
   const W = this.width;
   const H = this.height;
-  const dropTime = this.project.dropTime || 14.545;
+  const dur = this.project?.duration || 30.0;
+  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
+    ? this.project.dropTime
+    : (dur * 0.5);
   const isPostDrop = tCurrent >= dropTime;
   const dropAge = isPostDrop ? tCurrent - dropTime : -1;
   const energy = this._getAudioEnergyAt(tCurrent);
@@ -1163,8 +1181,11 @@ _drawAnimeDropLayer(ctx, videoEl, dropAge, energy, loopFade = 1.0) {
 
   ctx.save();
 
-  const dur = this.project?.duration || 29.09;
-  const tCurrent = dropAge + (this.project.dropTime || 14.545);
+  const dur = this.project?.duration || 30.0;
+  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
+    ? this.project.dropTime
+    : (dur * 0.5);
+  const tCurrent = dropAge + dropTime;
 
   // Subtle drop glitch transition window (first 200ms at drop point)
   const hasGlitch = this.params.dropGlitch !== false && dropAge >= 0 && dropAge < 0.20;
@@ -1437,8 +1458,10 @@ _drawSpeedRampWhipLines(ctx, rampFactor, bloom) {
 }
 
 _getCutIntervalForTime(t) {
-  const dropTime = this.project?.dropTime || 14.545;
-  const dur = this.project?.duration || 29.09;
+  const dur = this.project?.duration || 30.0;
+  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
+    ? this.project.dropTime
+    : (dur * 0.5);
   const cutMode = this.params.cutMode || 'chord';
 
   if (cutMode === 'single') {
@@ -1451,7 +1474,7 @@ _getCutIntervalForTime(t) {
   } else if (cutMode === 'impact') {
     cuts = [dropTime, ...(this.project.impactTimes || []).filter((c) => c > dropTime + 0.1), dur];
   } else {
-    const secPerBar = (60 / (this.project.bpm || 132)) * 4;
+    const secPerBar = (60 / (this.project.bpm || 120)) * 4;
     const barCount = cutMode === '2bar' ? 2 : 4;
     const step = secPerBar * barCount;
     for (let ct = dropTime; ct < dur; ct += step) cuts.push(ct);
@@ -1471,7 +1494,10 @@ getSpeedRampInfo(t) {
   if (!this.params.speedRamping) {
     return { clipTime: 0, instSpeed: 1.0, rampFactor: 0, isRamping: false, phase: 'cruise' };
   }
-  const dropTime = this.project?.dropTime || 14.545;
+  const dur = this.project?.duration || 30.0;
+  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
+    ? this.project.dropTime
+    : (dur * 0.5);
   if (t < dropTime) {
     return { clipTime: 0, instSpeed: 1.0, rampFactor: 0, isRamping: false, phase: 'pre-drop' };
   }
@@ -1529,7 +1555,10 @@ _drawBackgroundMotionBlurWarp(ctx, t, pLift, liftEase, bloom) {
   if (liftEase <= 0.005) return;
   ctx.save();
   const H = this.height;
-  const dropTime = this.project.dropTime || 14.545;
+  const dur = this.project?.duration || 30.0;
+  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
+    ? this.project.dropTime
+    : (dur * 0.5);
   const preDropDur = this.params?.preDropDuration || 2.2;
   const dt = Math.max(0, t - (dropTime - preDropDur));
   const warpStreakLen = Math.min(540, 24 + liftEase * 440 + Math.pow(pLift, 2.5) * 80);
@@ -1616,7 +1645,10 @@ _drawPreDropWarpSparkles(ctx, t, pLift, liftEase, bloom) {
   if (pLift <= 0.005) return;
   ctx.save();
   const H = this.height;
-  const dropTime = this.project.dropTime || 14.545;
+  const dur = this.project?.duration || 30.0;
+  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
+    ? this.project.dropTime
+    : (dur * 0.5);
   const preDropDur = this.params?.preDropDuration || 2.2;
   const dt = Math.max(0, t - (dropTime - preDropDur));
   const inWindowFade = Math.min(1.0, pLift * 2.2);
@@ -2079,7 +2111,10 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
   _getRecentCutInfo(tCurrent) {
     const cutMode = this.params.cutMode || 'chord';
     if (cutMode === 'single') return -1;
-    const dropTime = this.project.dropTime || 14.545;
+    const dur = this.project?.duration || 30.0;
+  const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
+    ? this.project.dropTime
+    : (dur * 0.5);
     if (tCurrent < dropTime + 0.1) return -1;
 
     let cuts = [];
@@ -2088,7 +2123,7 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
     } else if (cutMode === 'impact') {
       cuts = this.project.impactTimes || [];
     } else if (cutMode === '2bar' || cutMode === '4bar') {
-      const secPerBar = (60 / (this.project.bpm || 132)) * 4;
+      const secPerBar = (60 / (this.project.bpm || 120)) * 4;
       const barCount = cutMode === '2bar' ? 2 : 4;
       const step = secPerBar * barCount;
       const dur = this.project.duration || 30;
@@ -2261,10 +2296,10 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
     ctx.fillText('• notes', 48, top + 42);
 
     // Sample name & index number on the same line, aligned to the right
-    const title = (this.project.title || 'meadows').toLowerCase();
-    const rawNum = String(this.project.sampleNumber || '001').trim();
-    const numFormatted = rawNum.startsWith('#') ? rawNum : `#${rawNum}`;
-    const sampleDisplay = `${numFormatted} · ${title}`;
+    const title = (this.project.title || 'untitled').toLowerCase();
+    const rawNum = this.project.sampleNumber ? String(this.project.sampleNumber).trim() : '';
+    const numFormatted = rawNum ? (rawNum.startsWith('#') ? rawNum : `#${rawNum}`) : '';
+    const sampleDisplay = numFormatted ? `${numFormatted} · ${title}` : title;
 
     ctx.textAlign = 'right';
     ctx.fillStyle = this._mixRgb(237, 240, 248, 20, 26, 36, dayInvert);
@@ -2316,8 +2351,8 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
     }
 
     // Scrolling Bar Grid Lines & Bar Numbers (1, 2, 3, 4...)
-    const secPerBar = (60 / (this.project.bpm || 132)) * 4;
-    const dur = this.project.duration || 29.09;
+    const secPerBar = (60 / (this.project.bpm || 120)) * 4;
+    const dur = this.project.duration || 30.0;
     const totalBars = Math.max(1, Math.round(dur / secPerBar));
     const firstBar = Math.floor((t - 2) / secPerBar);
     const lastBar = Math.ceil((t + 6) / secPerBar);
@@ -2386,7 +2421,7 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
 
       const isPlaying = t >= noteTime && t <= nEnd;
       const hasPassed = t > nEnd;
-      const notePostDrop = isWrappedIntro ? false : (noteTime >= (this.project.dropTime || 14.545));
+      const notePostDrop = isWrappedIntro ? false : (noteTime >= this.getDropTime());
 
       if (isPlaying) {
         ctx.fillStyle = notePostDrop
@@ -2457,10 +2492,10 @@ _drawConstellationsAndStars(ctx, t, isPostDrop, dropAge, energy, bloom, loopFade
 
   _drawTrackInfoAbovePianoRoll(ctx, isPostDrop, postDropBlend = 0) {
     const W = this.width;
-    const bpmVal = parseFloat(this.project.bpm) || 132;
+    const bpmVal = parseFloat(this.project.bpm) || 120;
     const bpmStr = bpmVal % 1 === 0 ? String(bpmVal) : bpmVal.toFixed(1);
-    const keyStr = (this.project.key || 'bmaj').toLowerCase();
-    const text = `${bpmStr} bpm · ${keyStr}`;
+    const keyStr = (this.project.key || '').toLowerCase();
+    const text = keyStr ? `${bpmStr} bpm · ${keyStr}` : `${bpmStr} bpm`;
 
     const artist = (this.project.brand || 'aesttc').toLowerCase();
     const dayInvert = this._getDayInvertFactor(this._tCurrent);

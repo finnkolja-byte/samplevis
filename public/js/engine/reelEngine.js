@@ -337,23 +337,29 @@
 
       allNotes.sort((a, b) => a.startTime - b.startTime || a.pitch - b.pitch);
 
+      const duration = proj.duration || 30.0;
+      const dropTime = (typeof proj.dropTime === 'number' && !isNaN(proj.dropTime))
+        ? proj.dropTime
+        : (duration * 0.5);
+      const bpm = proj.bpm || 120;
+
       return {
-        brand: proj.brand || 'aesttc',
-        sampleNumber: proj.sampleNumber || '001',
-        title: proj.title || 'meadows',
-        key: proj.key || 'bmaj',
-        duration: proj.duration || 29.09,
-        sampleRate: 44100,
-        bpm: proj.bpm || 132,
-        dropTime: proj.dropTime || 14.545,
-        dropBar: proj.dropBar || 9,
+        brand: proj.brand || '',
+        sampleNumber: proj.sampleNumber || '',
+        title: proj.title || 'untitled',
+        key: proj.key || '',
+        duration,
+        sampleRate: proj.sampleRate || 44100,
+        bpm,
+        dropTime,
+        dropBar: proj.dropBar || 1,
         pcmPeaks: proj.peaks ? new Float32Array(proj.peaks) : new Float32Array(240),
-        chordCutTimes: proj.chordCutTimes || [proj.dropTime || 14.545],
-        impactTimes: proj.impactTimes || [proj.dropTime || 14.545],
+        chordCutTimes: proj.chordCutTimes || [dropTime],
+        impactTimes: proj.impactTimes || [dropTime],
         aspectRatio: this.aspectRatio,
         midi: {
           hasMidi: allNotes.length > 0,
-          bpm: proj.bpm || 132,
+          bpm,
           tracks,
           allNotes
         },
@@ -370,7 +376,7 @@
 
     _getAudioMetricsAt(time) {
       const proj = this.project || {};
-      const duration = proj.duration || 29.09;
+      const duration = proj.duration || 30.0;
       const peaks = proj.peaks;
 
       let rms = 0.5;
@@ -380,11 +386,13 @@
         rms = peaks[idx] || 0.5;
       }
 
-      const dropTime = proj.dropTime || 14.545;
+      const dropTime = (typeof proj.dropTime === 'number' && !isNaN(proj.dropTime))
+        ? proj.dropTime
+        : (duration * 0.5);
       const isDrop = time >= dropTime;
 
       // synthesize smoothed audio frequency bands from rms & beat phase
-      const bpm = proj.bpm || 132;
+      const bpm = proj.bpm || 120;
       const beatPhase = (time * (bpm / 60)) % 1;
       const beatImpulse = Math.pow(Math.max(0, 1 - beatPhase * 1.8), 2.5);
 
@@ -449,7 +457,7 @@
       const uHasMidi = getLoc('u_has_midi');
       if (uHasMidi) gl.uniform1f(uHasMidi, this.selectedTrackIds.size > 0 ? 1.0 : 0.0);
       const uBpm = getLoc('u_bpm');
-      if (uBpm) gl.uniform1f(uBpm, this.project?.bpm || 132);
+      if (uBpm) gl.uniform1f(uBpm, this.project?.bpm || 120);
       const uNoteHit = getLoc('u_note_hit');
       if (uNoteHit) gl.uniform1f(uNoteHit, noteTriggerImpulse);
       const uActivePitch = getLoc('u_active_pitch');
@@ -499,8 +507,11 @@
     }
 
     getSpeedRampInfo(time) {
-      const dropTime = this.project?.dropTime || 14.545;
-      const bpm = this.project?.bpm || 132;
+      const duration = this.project?.duration || 30.0;
+      const dropTime = (typeof this.project?.dropTime === 'number' && !isNaN(this.project.dropTime))
+        ? this.project.dropTime
+        : (duration * 0.5);
+      const bpm = this.project?.bpm || 120;
       const secPerBeat = 60 / bpm;
       const cutMode = this.preset?.controlsBox?.values?.cutMode || 'chord';
       const speedRamping = this.preset?.controlsBox?.values?.speedRamping !== false;
@@ -516,7 +527,7 @@
         cuts = this.project.impactTimes;
       } else {
         const interval = cutMode === '2bar' ? secPerBeat * 8 : secPerBeat * 16;
-        for (let t = dropTime; t < (this.project?.duration || 29.09); t += interval) {
+        for (let t = dropTime; t < duration; t += interval) {
           cuts.push(t);
         }
       }
@@ -567,7 +578,7 @@
       }
 
       // 4. build box 2 framecontext
-      const duration = this.project?.duration || 29.09;
+      const duration = this.project?.duration || 30.0;
       const frameContext = {
         audio: {
           time,
@@ -582,7 +593,7 @@
         },
         midi: {
           hasMidi: all.length > 0,
-          bpm: this.project?.bpm || 132,
+          bpm: this.project?.bpm || 120,
           allNotes: all,
           activeNotes: active,
           triggeredNotes: triggered
