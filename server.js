@@ -25,8 +25,9 @@ const DATA_DIR = path.join(__dirname, 'data');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const EXPORTS_DIR = path.join(DATA_DIR, 'exports');
 const PRESETS_DIR = path.join(DATA_DIR, 'presets', 'meadows');
+const CUSTOM_PRESETS_DIR = path.join(DATA_DIR, 'presets', 'custom');
 
-for (const dir of [DATA_DIR, UPLOADS_DIR, EXPORTS_DIR, CLIPS_DIR, PRESETS_DIR]) {
+for (const dir of [DATA_DIR, UPLOADS_DIR, EXPORTS_DIR, CLIPS_DIR, PRESETS_DIR, CUSTOM_PRESETS_DIR]) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
@@ -414,6 +415,118 @@ app.post('/api/clips/:id/favorite', (req, res) => {
     clip.favorite = typeof favorite === 'boolean' ? favorite : !clip.favorite;
     saveCatalog(catalog);
     res.json({ id: clip.id, favorite: clip.favorite, clip });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// custom 3-box design preset storage (pure self-hosted filesystem)
+app.get('/api/presets', async (_req, res) => {
+  try {
+    if (!fs.existsSync(CUSTOM_PRESETS_DIR)) {
+      return res.json({ presets: [] });
+    }
+    const files = await fs.promises.readdir(CUSTOM_PRESETS_DIR);
+    const presets = [];
+    for (const f of files) {
+      if (!f.endsWith('.json')) continue;
+      try {
+        const raw = await fs.promises.readFile(path.join(CUSTOM_PRESETS_DIR, f), 'utf8');
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.id) presets.push(parsed);
+      } catch (parseErr) {
+        console.warn(`[PresetStore] Skipping invalid preset file "${f}":`, parseErr.message);
+      }
+    }
+    res.json({ presets });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/presets/:id', async (req, res) => {
+  try {
+    const id = String(req.params.id || '').replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
+    const filePath = path.join(CUSTOM_PRESETS_DIR, `${id}.json`);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Preset not found' });
+    }
+    const raw = await fs.promises.readFile(filePath, 'utf8');
+    res.json({ preset: JSON.parse(raw) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/presets', express.json({ limit: '5mb' }), async (req, res) => {
+  try {
+    const preset = req.body.preset || req.body;
+    if (!preset || typeof preset !== 'object') {
+      return res.status(400).json({ error: 'Invalid preset payload' });
+    }
+
+    const rawId = preset.id || preset.meta?.name || `custom_${Date.now()}`;
+    const id = String(rawId)
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    if (!id) {
+      return res.status(400).json({ error: 'Preset ID cannot be empty' });
+    }
+
+    // construct clean 3-box preset object
+    const cleanPreset = {
+      version: preset.version || '1.0',
+      id,
+      meta: {
+        name: preset.meta?.name || id,
+        title: preset.meta?.title || preset.meta?.name || id,
+        description: preset.meta?.description || 'Custom 3-box preset',
+        aspectRatio: preset.meta?.aspectRatio || '9:16',
+        badge: preset.meta?.badge || 'Custom',
+        author: preset.meta?.author || 'local',
+        createdAt: preset.meta?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      features: preset.features || {
+        timeline: {
+          markers: [
+            { id: 'drop', label: 'drop', color: '#83ca90' }
+          ]
+        }
+      },
+      shaderBox: {
+        fragmentShader: preset.shaderBox?.fragmentShader || ''
+      },
+      frontUiBox: {
+        initScript: preset.frontUiBox?.initScript || '',
+        drawScript: preset.frontUiBox?.drawScript || ''
+      },
+      controlsBox: {
+        fields: Array.isArray(preset.controlsBox?.fields) ? preset.controlsBox.fields : [],
+        values: preset.controlsBox?.values && typeof preset.controlsBox.values === 'object' ? preset.controlsBox.values : {}
+      }
+    };
+
+    const targetPath = path.join(CUSTOM_PRESETS_DIR, `${id}.json`);
+    await fs.promises.writeFile(targetPath, JSON.stringify(cleanPreset, null, 2), 'utf8');
+
+    res.json({ ok: true, id, preset: cleanPreset });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/presets/:id', async (req, res) => {
+  try {
+    const id = String(req.params.id || '').replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
+    const filePath = path.join(CUSTOM_PRESETS_DIR, `${id}.json`);
+    if (fs.existsSync(filePath)) {
+      await fs.promises.unlink(filePath);
+    }
+    res.json({ ok: true, id });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

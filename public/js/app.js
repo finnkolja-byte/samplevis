@@ -99,7 +99,11 @@
     designModal: document.getElementById('designModal'),
     closeDesignModalBtn: document.getElementById('closeDesignModalBtn'),
     designTemplateGrid: document.getElementById('designTemplateGrid'),
-    templateControlsContainer: document.getElementById('templateControlsContainer')
+    templateControlsContainer: document.getElementById('templateControlsContainer'),
+    importPresetBtn: document.getElementById('importPresetBtn'),
+    exportActivePresetBtn: document.getElementById('exportActivePresetBtn'),
+    cloneDesignBtn: document.getElementById('cloneDesignBtn'),
+    importPresetFileInput: document.getElementById('importPresetFileInput')
   };
 
   // initialize active template from registry
@@ -1338,6 +1342,7 @@
 
       templates.forEach((tpl) => {
         const isActive = tpl.id === activeId;
+        const isCustom = tpl.badge === 'Custom' || Boolean(tpl.isCustom);
         const card = document.createElement('div');
         card.className = `template-card${isActive ? ' active' : ''}`;
         card.innerHTML = `
@@ -1348,9 +1353,30 @@
           <div class="template-card-desc">${tpl.tagline || ''}</div>
           <div class="template-card-footer">
             <span class="template-status-tag">${isActive ? 'active' : 'select'}</span>
-            <span class="template-btn-action">${isActive ? 'selected' : 'apply'}</span>
+            <div class="template-card-actions">
+              ${isCustom ? `<button class="template-delete-btn" type="button" title="delete preset">delete</button>` : ''}
+              <span class="template-btn-action">${isActive ? 'selected' : 'apply'}</span>
+            </div>
           </div>
         `;
+
+        if (isCustom) {
+          const delBtn = card.querySelector('.template-delete-btn');
+          if (delBtn) {
+            delBtn.addEventListener('click', async (e) => {
+              e.stopPropagation();
+              if (confirm(`Delete custom preset "${tpl.name}"?`)) {
+                if (window.presetService) {
+                  await window.presetService.deletePreset(tpl.id);
+                } else if (window.templateRegistry?.templates) {
+                  window.templateRegistry.templates.delete(tpl.id);
+                }
+                renderGalleryCards();
+              }
+            });
+          }
+        }
+
         card.addEventListener('click', async () => {
           await window.templateRegistry.setTemplate(
             tpl.id,
@@ -1372,6 +1398,123 @@
         });
         els.designTemplateGrid.appendChild(card);
       });
+    }
+
+    // import preset
+    if (els.importPresetBtn && els.importPresetFileInput) {
+      els.importPresetBtn.addEventListener('click', () => {
+        els.importPresetFileInput.click();
+      });
+
+      els.importPresetFileInput.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+          if (!window.presetService) {
+            throw new Error('Preset service not initialized');
+          }
+          const imported = await window.presetService.importPresetFile(file);
+          renderGalleryCards();
+          if (imported && imported.id) {
+            await window.templateRegistry.setTemplate(
+              imported.id,
+              previewCanvas,
+              state,
+              els.templateControlsContainer
+            );
+            visualizer = window.templateRegistry.activeTemplate;
+            if (els.topActiveDesignLabel) {
+              els.topActiveDesignLabel.textContent = imported.meta.name;
+            }
+            closeDesignModal();
+          }
+        } catch (err) {
+          alert(`Failed to import preset: ${err.message}`);
+        }
+        els.importPresetFileInput.value = '';
+      });
+    }
+
+    // export active preset
+    if (els.exportActivePresetBtn) {
+      els.exportActivePresetBtn.addEventListener('click', () => {
+        const activeId = window.templateRegistry?.activeTemplateId || 'constellations';
+        if (window.presetService) {
+          window.presetService.exportPreset(activeId);
+        }
+      });
+    }
+
+    // clone & customize active design
+    if (els.cloneDesignBtn) {
+      els.cloneDesignBtn.addEventListener('click', async () => {
+        const activeId = window.templateRegistry?.activeTemplateId || 'constellations';
+        const activeTpl = window.templateRegistry?.activeTemplate;
+        const defaultName = `${activeTpl ? activeTpl.name : 'Custom Style'} (Clone)`;
+        const newName = prompt('Enter a name for the cloned design style:', defaultName);
+        if (!newName || !newName.trim()) return;
+
+        // retrieve base 3-box definition
+        let baseDef = activeTpl?.preset;
+        if (!baseDef && window.STARTER_PRESET_DEFINITIONS) {
+          baseDef = window.STARTER_PRESET_DEFINITIONS[activeId];
+        }
+
+        const cloneId = newName.toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+        const clonedPreset = {
+          version: '1.0',
+          id: cloneId,
+          meta: {
+            name: newName.trim(),
+            title: newName.trim(),
+            description: `Customized from ${activeTpl ? activeTpl.name : 'starter style'}`,
+            aspectRatio: state.aspectRatio || '9:16',
+            badge: 'Custom',
+            createdAt: new Date().toISOString()
+          },
+          features: baseDef?.features || {
+            timeline: {
+              markers: [{ id: 'drop', label: 'drop', color: '#83ca90' }]
+            }
+          },
+          shaderBox: {
+            fragmentShader: baseDef?.shaderBox?.fragmentShader || ''
+          },
+          frontUiBox: {
+            initScript: baseDef?.frontUiBox?.initScript || '',
+            drawScript: baseDef?.frontUiBox?.drawScript || ''
+          },
+          controlsBox: {
+            fields: baseDef?.controlsBox?.fields ? JSON.parse(JSON.stringify(baseDef.controlsBox.fields)) : [],
+            values: baseDef?.controlsBox?.values ? JSON.parse(JSON.stringify(baseDef.controlsBox.values)) : {}
+          }
+        };
+
+        try {
+          if (window.presetService) {
+            const saved = await window.presetService.savePreset(clonedPreset);
+            renderGalleryCards();
+            await window.templateRegistry.setTemplate(
+              saved.id,
+              previewCanvas,
+              state,
+              els.templateControlsContainer
+            );
+            visualizer = window.templateRegistry.activeTemplate;
+            if (els.topActiveDesignLabel) {
+              els.topActiveDesignLabel.textContent = saved.meta.name;
+            }
+            closeDesignModal();
+          }
+        } catch (err) {
+          alert(`Could not clone design: ${err.message}`);
+        }
+      });
+    }
+
+    if (window.presetService) {
+      window.presetService.onPresetsChange(() => renderGalleryCards());
+      window.presetService.syncWithBackend().then(() => renderGalleryCards());
     }
 
     function openDesignModal() {

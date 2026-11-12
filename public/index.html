@@ -6,7 +6,7 @@
   <title>samplevis · night-sky constellation &amp; anime short studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@1,400;1,500&family=Geist+Mono:wght@400;500;600&family=Geist:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&family=Geist+Mono:wght@400;500;600&family=Geist:wght@400;500;600&family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Space+Grotesk:wght@500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
@@ -276,6 +276,12 @@
         <button class="btn-inline" id="closeDesignModalBtn" type="button">close [esc]</button>
       </div>
       <div class="modal-body">
+        <div class="design-modal-toolbar">
+          <button class="btn btn-ghost" id="importPresetBtn" type="button">import preset [.reel.json]</button>
+          <button class="btn btn-ghost" id="exportActivePresetBtn" type="button">export active [.reel.json]</button>
+          <button class="btn btn-secondary" id="cloneDesignBtn" type="button">clone &amp; customize</button>
+          <input type="file" id="importPresetFileInput" accept=".json,.reel.json" hidden />
+        </div>
         <p class="design-modal-subtext">choose a visual design style for your sample reels. all clips, cuts, audio analysis, and client gpu rendering are preserved.</p>
         <div class="design-template-grid" id="designTemplateGrid">
           <!-- injected by templateRegistry -->
@@ -319,6 +325,7 @@
 
   <script src="/vendor/mp4-muxer.js"></script>
   <script src="/js/services/aiProvider.js"></script>
+  <script src="/js/services/presetService.js"></script>
   <script src="/js/engine/reelEngine.js"></script>
   <script src="/js/engine/controlsManager.js"></script>
   <script src="/js/presets/starterPresets.js"></script>

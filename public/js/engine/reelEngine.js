@@ -576,6 +576,14 @@
           activeNotes: active,
           triggeredNotes: triggered
         },
+        timeline: {
+          dropTime: this.project?.dropTime !== undefined ? this.project.dropTime : duration * 0.5,
+          dropBar: this.project?.dropBar || 9,
+          markers: (this.preset?.features?.timeline?.markers || [
+            { id: 'drop', label: 'drop', time: this.project?.dropTime !== undefined ? this.project.dropTime : duration * 0.5, color: '#83ca90' }
+          ]),
+          chords: this.project?.chordTimelineMarkers || []
+        },
         clips: {
           count: this.activeVideos.length,
           drawClip: (destCtx, clipIdx, x, y, w, h, opts = {}) => {
