@@ -1,0 +1,23 @@
+{
+  "name": "samplevis",
+  "version": "1.0.0",
+  "description": "Night-sky constellation MIDI visualizer & melancholic anime short-form studio with client-side WebCodecs rendering and Postiz integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "fetch-clips": "node src/media/seedClips.js"
+  },
+  "dependencies": {
+    "@tonejs/midi": "^2.0.28",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "fast-xml-parser": "^5.0.8",
+    "helmet": "^8.0.0",
+    "mp4-muxer": "^5.1.5",
+    "multer": "^2.5.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,27 @@
+# Private project context docs (kept locally for agent memory, never pushed to public git)
+ARCHITECTURE.md
+project.md
+sideinfo.md
+
+# Dependencies
+node_modules/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local media uploads & exports
+data/uploads/*
+!data/uploads/.gitkeep
+data/exports/*
+!data/exports/.gitkeep
+
+# Local binary anime clip cache (heavy binaries fetched on demand)
+data/anime-clips/*
+!data/anime-clips/.gitkeep
+
+# System & editor metadata
+.DS_Store
+Thumbs.db
+*.log

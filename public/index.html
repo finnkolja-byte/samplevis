@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>samplevis · night-sky constellation &amp; anime short studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!-- Ambient Liquid Glass Backdrop Orbs -->
+  <div class="ambient-orb ambient-orb-1" aria-hidden="true"></div>
+  <div class="ambient-orb ambient-orb-2" aria-hidden="true"></div>
+  <div class="ambient-orb ambient-orb-3" aria-hidden="true"></div>
+
+  <!-- Top Glass Bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="brand-mark">samplevis</span>
+      <span class="divider-slash">·</span>
+      <span class="topbar-subtitle">reels studio</span>
+      <button class="design-switcher-btn" id="openDesignModalBtn" type="button" title="switch visual design template">
+        <span class="design-label-prefix">design:</span>
+        <span class="design-label-active" id="topActiveDesignLabel">constellations</span>
+        <span class="design-label-switch">[switch]</span>
+      </button>
+    </div>
+    <div class="topbar-center">
+      <div class="telemetry-Readout" id="topTelemetry">
+        <span id="aspectRatioTelemetry">res: 1080×1920 (9:16)</span>
+        <span class="sep">·</span>
+        <span>rate: 60.0 fps</span>
+        <span class="sep">·</span>
+        <span id="encoderBadge">encoder: client webcodecs gpu</span>
+      </div>
+      <button class="aspect-switcher-btn" id="aspectRatioToggleBtn" type="button" title="switch aspect ratio between 9:16 vertical and 16:9 widescreen">
+        switch to widescreen / horizontal (ai)
+      </button>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-ghost" id="openAiSettingsBtn" type="button" title="configure BYOK AI endpoint and API key">
+        ai settings [byok]
+      </button>
+      <button class="btn btn-ghost" id="openQueueBtn" type="button">postiz queue</button>
+    </div>
+  </header>
+
+  <!-- Main 4-Column Studio Grid (with dedicated Clip Picker panel) -->
+  <main class="studio-grid">
+    <!-- COLUMN 1: SOURCE, METADATA & MIDI TRACK MATRIX -->
+    <section class="panel panel-left">
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-idx">01</span>
+          <h2 class="section-title">sample &amp; midi source</h2>
+          <button class="btn-inline" id="reloadStarterBtn" type="button" title="reload #1 - meadows starter">load #1 meadows</button>
+        </div>
+
+        <!-- Drag & Drop Zone -->
+        <div class="dropzone" id="sampleDropzone" tabindex="0">
+          <input type="file" id="sampleFileInput" multiple accept=".wav,.mid,.midi,.als" hidden />
+          <div class="dropzone-label">drop .wav + (.mid or .als)</div>
+          <div class="dropzone-sub">or click to browse files · auto-parses key, bpm &amp; drop bar</div>
+          <div class="dropzone-status" id="uploadStatusText">active: #1 - meadows - bmaj - 132bpm</div>
+        </div>
+      </div>
+
+      <!-- Header Metadata Controls -->
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-idx">02</span>
+          <h2 class="section-title">header metadata</h2>
+        </div>
+        <div class="form-grid-2">
+          <label class="field">
+            <span class="field-label">artist name</span>
+            <input type="text" id="inputBrand" value="aesttc" maxlength="24" />
+          </label>
+          <label class="field">
+            <span class="field-label">index #</span>
+            <input type="text" id="inputNumber" value="001" maxlength="8" />
+          </label>
+          <label class="field">
+            <span class="field-label">sample name</span>
+            <input type="text" id="inputTitle" value="meadows" maxlength="40" />
+          </label>
+          <div class="form-row-split">
+            <label class="field">
+              <span class="field-label">bpm</span>
+              <input type="number" id="inputBpm" value="132" min="40" max="240" step="0.5" />
+            </label>
+            <label class="field">
+              <span class="field-label">key</span>
+              <input type="text" id="inputKey" value="bmaj" maxlength="10" />
+            </label>
+          </div>
+          <div class="header-preview-pill" id="headerPreviewPill">[#1 - meadows · aesttc]</div>
+        </div>
+      </div>
+
+      <!-- MIDI Tracks Selector -->
+      <div class="panel-section panel-grow">
+        <div class="section-header">
+          <span class="section-idx">03</span>
+          <h2 class="section-title">midi constellation tracks</h2>
+          <span class="badge-mono" id="midiSourceBadge">als</span>
+        </div>
+        <p class="helper-note">select which instrument tracks spawn stars &amp; appear in the piano roll:</p>
+        <div class="track-list" id="trackListContainer"></div>
+
+        <div class="toggle-row" style="margin-top: 10px;">
+          <label class="checkbox-label">
+            <input type="checkbox" id="loopIntroMidiCheckbox" checked />
+            <span>mirror intro melody into drop (if track ends at drop)</span>
+          </label>
+        </div>
+        <div class="toggle-row" style="margin-top: 6px;">
+          <label class="checkbox-label">
+            <input type="checkbox" id="seamlessReelLoopCheckbox" checked />
+            <span>seamless infinite reel loop (piano roll wrap &amp; outro return)</span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMN 2: 9:16 STAGE & WAVEFORM TIMELINE -->
+    <section class="panel panel-center">
+      <div class="stage-wrapper">
+        <div class="canvas-housing">
+          <canvas id="previewCanvas" width="1080" height="1920"></canvas>
+          <div class="render-overlay" id="renderOverlay" hidden>
+            <div class="render-box">
+              <div class="render-title" id="renderStatusTitle">client gpu rendering...</div>
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="renderProgressBar"></div>
+              </div>
+              <div class="render-meta" id="renderProgressMeta">frame 0 / 1745 (0%)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transport & Interactive Drop Timeline -->
+      <div class="timeline-dock">
+        <div class="transport-bar">
+          <div class="transport-left">
+            <button class="btn btn-primary" id="playPauseBtn" type="button">play</button>
+            <button class="btn btn-secondary" id="jumpDropBtn" type="button" title="preview 2 seconds before the drop">test drop</button>
+            <span class="time-readout" id="timeReadout">00:00.00 / 00:29.09</span>
+          </div>
+          <div class="transport-right">
+            <span class="bar-readout" id="barReadout">bar 01.1</span>
+            <span class="drop-badge" id="dropBadgeReadout">drop · bar 9 (14.55s)</span>
+          </div>
+        </div>
+
+        <!-- Waveform + Draggable Drop Marker -->
+        <div class="waveform-container" id="waveformContainer" title="click to seek · drag amber drop line to adjust explosion point">
+          <canvas id="waveformCanvas" width="900" height="68"></canvas>
+          <div class="drop-marker-line" id="dropMarkerLine">
+            <span class="drop-marker-tag" id="dropMarkerTag">drop · bar 9</span>
+          </div>
+          <div class="playhead-line" id="timelinePlayhead"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMN 3: MELANCHOLIC ANIME CLIP SELECTOR & FETCHER (DEDICATED PANEL) -->
+    <section class="panel panel-clips">
+      <div class="panel-section panel-grow">
+        <div class="section-header">
+          <span class="section-idx">04</span>
+          <h2 class="section-title">melancholic anime clips</h2>
+          <div class="header-actions">
+            <button class="btn-inline" id="autoPickChordClipsBtn" type="button" title="select 4 distinct clips for chord cuts">pick 4</button>
+            <button class="btn-inline" id="shuffleClipBtn" type="button">shuffle</button>
+            <button class="btn-inline" id="unselectAllClipsBtn" type="button" title="unselect all clips">unselect all</button>
+          </div>
+        </div>
+
+        <!-- Mode Selector: Dynamic Chord Cuts vs Single Loop vs Beat/Bar Cuts -->
+        <div class="segmented-control" role="radiogroup" aria-label="anime drop playback mode">
+          <button type="button" class="seg-btn active" data-cutmode="chord" id="modeChordBtn">chord cuts</button>
+          <button type="button" class="seg-btn" data-cutmode="single" id="modeSingleBtn">single loop</button>
+          <button type="button" class="seg-btn" data-cutmode="2bar" id="mode2BarBtn">2-bar</button>
+          <button type="button" class="seg-btn" data-cutmode="4bar" id="mode4BarBtn">4-bar</button>
+          <button type="button" class="seg-btn" data-cutmode="impact" id="modeImpactBtn">impacts</button>
+        </div>
+        <div class="cutmode-hint" id="cutmodeHint">dynamic chord cuts · switches clips on every harmony change</div>
+        <div class="speedramp-row">
+          <label class="speedramp-label" for="speedRampToggle">
+            <input type="checkbox" id="speedRampToggle" checked />
+            <span class="speedramp-text">speed ramp transitions</span>
+            <span class="speedramp-subtext">· whip accelerate into &amp; out of cuts</span>
+          </label>
+        </div>
+        <div class="speedramp-row">
+          <label class="speedramp-label" for="dropGlitchToggle">
+            <input type="checkbox" id="dropGlitchToggle" checked />
+            <span class="speedramp-text">glitch transitions (in &amp; out)</span>
+            <span class="speedramp-subtext">· punchy chromatic glitch-in at drop &amp; glitch-out at reel loop end</span>
+          </label>
+        </div>
+        <div class="speedramp-row">
+          <label class="speedramp-label" for="autoFrameToggle">
+            <input type="checkbox" id="autoFrameToggle" checked />
+            <span class="speedramp-text">auto-frame subject (character tracking)</span>
+            <span class="speedramp-subtext">· centers anime characters in 9:16 crop</span>
+          </label>
+        </div>
+
+        <!-- Auto-Fetcher Bar -->
+        <div class="fetcher-bar">
+          <select id="fetchCategorySelect" class="select-compact">
+            <option value="all">all melancholic (characters + scenery)</option>
+            <option value="favorites">★ favorites (saved clips)</option>
+            <option value="kimi_no_na_wa">kimi no na wa (your name)</option>
+            <option value="weathering_with_you">weathering with you (tenki no ko)</option>
+            <option value="suzume">suzume (suzume no tojimari)</option>
+            <option value="5_centimeters_per_second">5 centimeters per second</option>
+            <option value="the_garden_of_words">the garden of words (kotonoha no niwa)</option>
+            <option value="violet_evergarden">violet evergarden</option>
+            <option value="a_silent_voice">a silent voice (koe no katachi)</option>
+            <option value="your_lie_in_april">your lie in april (shigatsu wa kimi no uso)</option>
+            <option value="josee">josee, the tiger and the fish</option>
+            <option value="frieren">frieren: beyond journey's end</option>
+            <option value="night_sunset">night &amp; sunset</option>
+            <option value="calm">calm &amp; peaceful</option>
+            <option value="character_melancholic">characters · wind / melancholic</option>
+            <option value="city_walk_stairs">city / stairs / bridge / train</option>
+            <option value="beach_ocean_breeze">beach / ocean / breeze</option>
+            <option value="meadows_sky_night">meadows / nature / sky</option>
+          </select>
+          <div class="fetcher-actions">
+            <button class="btn btn-secondary btn-sm" id="fetchBestClipsBtn" type="button" title="fetch highest rated masterpiece clips in this category">fetch best</button>
+            <button class="btn btn-secondary btn-sm" id="fetchRandomClipsBtn" type="button" title="fetch random clips within this category">fetch random</button>
+            <label class="btn btn-ghost btn-sm btn-file-upload" title="upload your own mp4/webm anime clip">
+              +file
+              <input type="file" id="customClipInput" accept=".mp4,.webm" hidden />
+            </label>
+          </div>
+        </div>
+
+        <div class="clip-grid" id="clipGridContainer"></div>
+      </div>
+    </section>
+
+    <!-- COLUMN 4: DESIGN OPTICS, OPTIONS & EXPORT -->
+    <section class="panel panel-right">
+      <!-- Dynamic Template Optics Controls -->
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-idx">05</span>
+          <h2 class="section-title" id="templateSectionTitle">optics &amp; style</h2>
+        </div>
+
+        <div id="templateControlsContainer">
+          <!-- Dynamically populated by active design template -->
+        </div>
+      </div>
+
+      <!-- Client GPU Export & Postiz Publish -->
+      <div class="panel-section export-footer">
+        <div class="section-header">
+          <span class="section-idx">06</span>
+          <h2 class="section-title">export &amp; schedule</h2>
+        </div>
+        <div class="export-actions">
+          <button class="btn btn-primary btn-block" id="renderMp4Btn" type="button">
+            render 1080×1920 60fps mp4 (client gpu)
+          </button>
+          <div class="export-sub-actions">
+            <a class="btn btn-secondary btn-block" id="downloadLastRenderBtn" hidden download="samplevis.mp4">
+              download mp4
+            </a>
+            <button class="btn btn-accent btn-block" id="openScheduleModalBtn" type="button">
+              schedule on postiz (ig · yt · tiktok)
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Postiz Multi-Platform Scheduling Modal -->
+  <div class="modal-backdrop" id="scheduleModal" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>multi-platform schedule · postiz</h3>
+        <button class="btn-inline" id="closeScheduleModalBtn" type="button">close [esc]</button>
+      </div>
+      <div class="modal-body">
+        <div class="postiz-status-banner" id="postizStatusBanner">
+          checking postiz connection...
+        </div>
+
+        <label class="field">
+          <span class="field-label">target platforms</span>
+          <div class="platform-checks">
+            <label class="checkbox-label"><input type="checkbox" value="instagram" class="platform-cb" checked /> instagram reels</label>
+            <label class="checkbox-label"><input type="checkbox" value="youtube" class="platform-cb" checked /> youtube shorts</label>
+            <label class="checkbox-label"><input type="checkbox" value="tiktok" class="platform-cb" checked /> tiktok</label>
+          </div>
+        </label>
+
+        <label class="field">
+          <span class="field-label">schedule date &amp; time</span>
+          <input type="datetime-local" id="scheduleDateTime" />
+        </label>
+
+        <label class="field">
+          <span class="field-label">caption &amp; hashtags (auto-generated)</span>
+          <textarea id="scheduleCaption" rows="4"></textarea>
+        </label>
+
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="confirmScheduleBtn" type="button">send render to postiz queue</button>
+        </div>
+
+        <div class="queue-list-wrap">
+          <div class="field-label" style="margin-bottom: 6px;">recent scheduled queue</div>
+          <div id="scheduledQueueList" class="queue-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Design Template Gallery Modal -->
+  <div class="modal-backdrop" id="designModal" hidden>
+    <div class="modal-card design-modal-card">
+      <div class="modal-header">
+        <h3>design templates · visual styles</h3>
+        <button class="btn-inline" id="closeDesignModalBtn" type="button">close [esc]</button>
+      </div>
+      <div class="modal-body">
+        <p class="design-modal-subtext">choose a visual design style for your sample reels. all clips, cuts, audio analysis, and client gpu rendering are preserved seamlessly.</p>
+        <div class="design-template-grid" id="designTemplateGrid">
+          <!-- Injected dynamically by templateRegistry -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BYOK AI Settings Modal -->
+  <div class="modal-backdrop" id="aiSettingsModal" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>ai settings · bring your own key (byok)</h3>
+        <button class="btn-inline" id="closeAiSettingsBtn" type="button">close [esc]</button>
+      </div>
+      <div class="modal-body">
+        <p class="design-modal-subtext">configure your personal api key for client-side ai preset generation. keys are stored locally in your browser and are never sent to external servers.</p>
+
+        <label class="field">
+          <span class="field-label">api key</span>
+          <input type="password" id="byokApiKeyInput" placeholder="sk-..." autocomplete="off" />
+        </label>
+
+        <label class="field">
+          <span class="field-label">api base url (openai-compatible)</span>
+          <input type="text" id="byokBaseUrlInput" value="https://api.deepinfra.com/v1/openai" placeholder="https://api.deepinfra.com/v1/openai" />
+        </label>
+
+        <label class="field">
+          <span class="field-label">model name</span>
+          <input type="text" id="byokModelInput" value="deepseek-ai/DeepSeek-V3" placeholder="deepseek-ai/DeepSeek-V3" />
+        </label>
+
+        <div class="modal-actions" style="margin-top: 14px;">
+          <button class="btn btn-primary" id="saveAiSettingsBtn" type="button">save settings</button>
+          <span class="save-status-msg" id="aiSettingsSaveStatus" style="color: var(--accent-amber); font-size: 11px; margin-left: 10px;"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/vendor/mp4-muxer.js"></script>
+  <script src="/js/services/aiProvider.js"></script>
+  <script src="/js/engine/reelEngine.js"></script>
+  <script src="/js/engine/controlsManager.js"></script>
+  <script src="/js/presets/starterPresets.js"></script>
+  <script src="/js/visualizer.js"></script>
+  <script src="/js/clientAnalyzer.js"></script>
+  <script src="/js/templates/templateRegistry.js"></script>
+  <script src="/js/templates/constellationsTemplate.js"></script>
+  <script src="/js/templates/cinematicMinimalTemplate.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

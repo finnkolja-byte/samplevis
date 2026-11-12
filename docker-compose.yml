@@ -1,0 +1,101 @@
+services:
+  samplevis:
+    build: .
+    container_name: samplevis
+    restart: unless-stopped
+    ports:
+      - "3450:3450"
+    volumes:
+      - ./data/anime-clips:/app/data/anime-clips
+      - ./data/uploads:/app/data/uploads
+      - ./data/exports:/app/data/exports
+      - ./data/anime-library.json:/app/data/anime-library.json
+    environment:
+      - NODE_ENV=production
+      - PORT=3450
+      - REQUIRE_AUTHELIA=${REQUIRE_AUTHELIA:-false}
+      - POSTIZ_API_URL=${POSTIZ_API_URL:-http://postiz:5000/api/public/v1}
+      - POSTIZ_API_KEY=${POSTIZ_API_KEY:-}
+    networks:
+      - caddy-proxy-net
+      - default
+
+  # Open-source multi-platform social scheduler (IG Reels, YT Shorts, TikTok)
+  # Start with: docker compose --profile postiz up -d
+  postiz:
+    image: ghcr.io/gitroomhq/postiz-app:latest
+    container_name: samplevis-postiz
+    profiles: ["postiz"]
+    restart: unless-stopped
+    environment:
+      - MAIN_URL=${POSTIZ_MAIN_URL:-http://localhost:4200}
+      - FRONTEND_URL=${POSTIZ_MAIN_URL:-http://localhost:4200}
+      - NEXT_PUBLIC_BACKEND_URL=${POSTIZ_MAIN_URL:-http://localhost:4200}/api
+      - JWT_SECRET=${POSTIZ_JWT_SECRET:-change_me_to_a_random_32_char_secret_key}
+      - DATABASE_URL=postgresql://postiz-user:${POSTIZ_DB_PASS:-postiz_local_pass}@postiz-postgres:5432/postiz-db-local
+      - REDIS_URL=redis://postiz-redis:6379
+      - BACKEND_INTERNAL_URL=http://localhost:3000
+      - IS_GENERAL=true
+      - STORAGE_PROVIDER=local
+      - UPLOAD_DIRECTORY=/uploads
+      - NEXT_PUBLIC_UPLOAD_DIRECTORY=/uploads
+    volumes:
+      - postiz-config:/config
+      - postiz-uploads:/uploads
+    ports:
+      - "4200:5000"
+    depends_on:
+      postiz-postgres:
+        condition: service_healthy
+      postiz-redis:
+        condition: service_healthy
+    networks:
+      - caddy-proxy-net
+      - default
+
+  postiz-postgres:
+    image: postgres:16-alpine
+    container_name: samplevis-postiz-db
+    profiles: ["postiz"]
+    restart: unless-stopped
+    environment:
+      - POSTGRES_PASSWORD=${POSTIZ_DB_PASS:-postiz_local_pass}
+      - POSTGRES_USER=postiz-user
+      - POSTGRES_DB=postiz-db-local
+    volumes:
+      - postiz-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postiz-user -d postiz-db-local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - default
+
+  postiz-redis:
+    image: redis:7.2-alpine
+    container_name: samplevis-postiz-redis
+    profiles: ["postiz"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postiz-redisdata:/data
+    networks:
+      - default
+
+volumes:
+  postiz-config:
+  postiz-uploads:
+  postiz-pgdata:
+  postiz-redisdata:
+
+networks:
+  caddy-proxy-net:
+    name: caddy-proxy-net
+    external: true
+  default:
+
