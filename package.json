@@ -1,0 +1,98 @@
+{
+  "name": "samplevis",
+  "productName": "SampleVis",
+  "version": "0.1.1",
+  "license": "MIT",
+  "author": "Finn",
+  "description": "Short-form music sample visualizer studio with client-side WebCodecs GPU rendering",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "electron": "node electron/launch.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "test": "node --no-warnings tests/parser.test.js && node --no-warnings tests/electron.test.js && node --no-warnings tests/lyricsAlign.test.js && node --no-warnings tests/presetPatch.test.js && node --no-warnings tests/presetSchema.test.js && node --no-warnings tests/lyricsRegroup.test.js && node --no-warnings tests/controlWiring.test.js && node --no-warnings tests/sandboxControls.test.js && node --no-warnings tests/clipCache.test.js && node --no-warnings tests/clipSources.test.js && node --no-warnings tests/fontLibrary.test.js && node --no-warnings tests/renderProbe.test.js && node --no-warnings tests/reelEngineShader.test.js && node --no-warnings tests/vizSkill.test.js && node --no-warnings tests/vizDescription.test.js && node --no-warnings tests/canvasTemplateCopy.test.js",
+    "fonts:sync": "node scripts/fetch-fonts.mjs",
+    "fetch-clips": "node scripts/backfill-clip-sources.mjs"
+  },
+  "dependencies": {
+    "@tonejs/midi": "^2.0.28",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "fast-xml-parser": "^5.0.8",
+    "helmet": "^8.0.0",
+    "mp4-muxer": "^5.1.5",
+    "multer": "^2.5.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "electron": "^45.3.2",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.samplevis.studio",
+    "productName": "SampleVis",
+    "artifactName": "SampleVis-${version}-beta-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "public/**/*",
+      "src/**/*",
+      "data/presets/meadows/**/*",
+      "data/presets/demos/**/*",
+      "package.json",
+      "!public/anime-clips/**/*",
+      "!data/anime-clips/**/*"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "als",
+        "name": "Ableton Live Set",
+        "role": "Viewer"
+      },
+      {
+        "ext": [
+          "mid",
+          "midi"
+        ],
+        "name": "MIDI Sequence",
+        "role": "Viewer"
+      },
+      {
+        "ext": "reel.json",
+        "name": "SampleVis Preset",
+        "role": "Editor"
+      },
+      {
+        "ext": "samplevis.zip",
+        "name": "SampleVis Project Bundle",
+        "role": "Editor"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "linux": {
+      "category": "AudioVideo",
+      "target": [
+        "AppImage",
+        "tar.gz"
+      ]
+    }
+  }
+}

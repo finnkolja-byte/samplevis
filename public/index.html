@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>samplevis 0.1.1 (beta) · audio &amp; midi reel studio</title>
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+
+<body>
+  <!-- ambient backdrop -->
+  <div class="ambient-orb ambient-orb-1" aria-hidden="true"></div>
+  <div class="ambient-orb ambient-orb-2" aria-hidden="true"></div>
+  <div class="ambient-orb ambient-orb-3" aria-hidden="true"></div>
+
+  <!-- project loading screen -->
+  <div class="project-loading-overlay" id="projectLoadingOverlay" role="status" aria-live="polite">
+    <div class="project-loading-card">
+      <div class="brand-lockup">
+        <div class="project-loading-brand">samplevis</div>
+        <span class="brand-beta-badge">beta</span>
+      </div>
+      <progress aria-label="opening project" class="loading-spinner"></progress>
+      <div class="project-loading-status" id="projectLoadingStatus">opening project...</div>
+    </div>
+  </div>
+
+  <!-- top bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <a href="/gallery.html" class="btn btn-ghost btn-xs topbar-back-link" id="backToGalleryBtn"
+        title="back to preset gallery">← gallery</a>
+      <div class="brand-lockup">
+        <a href="/gallery.html" class="brand-mark brand-link" id="brandGalleryLink"
+          title="close project and return to preset gallery">samplevis</a>
+        <span class="brand-beta-badge" title="samplevis 0.1.1 (beta)">beta</span>
+      </div>
+      <div class="topbar-preset-group">
+        <input type="text" id="topPresetNameInput" class="topbar-preset-name-input" value="constellations"
+          aria-label="preset name" title="click to rename preset" spellcheck="false" />
+        <button class="btn btn-secondary btn-xs" id="topSavePresetBtn" type="button"
+          title="save preset and capture thumbnail [ctrl+s]">
+          save preset
+        </button>
+        <button class="btn btn-ghost btn-xs" id="topExportZipBtn" type="button"
+          title="download portable .samplevis.zip bundle with all media, lyrics & audio">
+          export .zip
+        </button>
+        <button class="btn btn-ghost btn-xs" id="topImportBundleBtn" type="button"
+          title="import a .samplevis.zip bundle or .reel.json preset">
+          import
+        </button>
+        <div class="project-menu-anchor">
+          <button class="btn btn-ghost btn-xs project-menu-trigger" id="topProjectMenuBtn" type="button"
+            aria-haspopup="menu" aria-expanded="false" commandfor="topProjectMenuPopover" command="toggle-popover"
+            title="project actions, save copy as, and bundles">
+            <span>project</span>
+            <span class="project-menu-caret" aria-hidden="true">▾</span>
+          </button>
+          <div id="topProjectMenuPopover" class="project-menu-popover" popover="auto">
+            <div focusgroup="menu nomemory" aria-labelledby="topProjectMenuBtn" class="project-menu-list">
+              <button type="button" class="project-menu-item" id="menuSaveCopyBtn">
+                <span>save copy as...</span>
+                <span class="hint" aria-hidden="true">ctrl+shift+s</span>
+              </button>
+              <button type="button" class="project-menu-item" id="menuNewBlankProjectBtn">
+                <span>new blank project</span>
+              </button>
+              <button type="button" class="project-menu-item" id="menuRevertSavedBtn">
+                <span>revert to saved</span>
+              </button>
+              <hr />
+              <button type="button" class="project-menu-item" id="menuExportZipBtn">
+                <span>export .zip</span>
+              </button>
+              <button type="button" class="project-menu-item" id="menuImportBundleBtn">
+                <span>import .zip / .json</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <input type="file" id="topImportBundleInput" accept=".zip,.json,.reel.json" hidden />
+      </div>
+    </div>
+    <div class="topbar-center">
+      <div class="telemetry-readout" id="topTelemetry">
+        <span id="aspectRatioTelemetry">res: 1080×1920 (9:16)</span>
+        <span class="sep telemetry-optional">·</span>
+        <span class="telemetry-optional">rate: 60.0 fps</span>
+        <span class="sep telemetry-optional-wide">·</span>
+        <span class="telemetry-optional-wide" id="encoderBadge">encoder: client webcodecs gpu</span>
+      </div>
+      <button class="aspect-switcher-btn" id="aspectRatioToggleBtn" type="button"
+        title="cycle aspect ratio between 9:16 vertical, 16:9 widescreen, and 1:1 square">
+        switch to 16:9 widescreen
+      </button>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-secondary" id="openVizStudioBtn" type="button"
+        title="ask viz ai to design or modify your visualizer [ctrl+k]">
+        ask viz
+      </button>
+      <button class="btn btn-ghost" id="openAiSettingsBtn" type="button" title="configure byok ai endpoint and api key">
+        ai settings [byok]
+      </button>
+    </div>
+  </header>
+
+  <!-- main studio grid -->
+  <main class="studio-grid" id="studioGrid" data-active-pane="optics">
+    <!-- responsive panel switcher (<1320px compact desktop & mobile) -->
+    <nav class="studio-pane-tabs" id="studioPaneTabs" aria-label="studio panels">
+      <div class="studio-pane-tab-group" role="tablist" aria-label="workspace views">
+        <button type="button" class="studio-pane-tab studio-pane-tab-stage" data-pane="stage" aria-selected="false">stage</button>
+        <button type="button" class="studio-pane-tab" data-pane="source" aria-selected="false">source</button>
+        <button type="button" class="studio-pane-tab" data-pane="clips" id="paneTabClipsBtn" aria-selected="false">clips</button>
+        <button type="button" class="studio-pane-tab active" data-pane="optics" aria-selected="true">optics</button>
+      </div>
+      <button type="button" class="btn btn-primary btn-xs studio-pane-play-btn" id="paneQuickPlayBtn" aria-label="play or pause preview">play</button>
+    </nav>
+
+    <!-- column 1: source, metadata & midi tracks -->
+    <section class="panel panel-left" data-pane="source">
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-idx">01</span>
+          <h2 class="section-title">sample &amp; midi source</h2>
+          <button class="btn-inline" id="reloadStarterBtn" type="button" title="load initial default preset">load
+            initial preset</button>
+        </div>
+
+        <div class="dropzone" id="sampleDropzone" tabindex="0">
+          <input type="file" id="sampleFileInput" multiple accept=".wav,.mid,.midi,.als" hidden />
+          <div class="dropzone-label">drop .wav + (.mid or .als)</div>
+          <div class="dropzone-sub">or click to browse files · auto-parses key, bpm &amp; drop bar</div>
+          <div class="dropzone-status" id="uploadStatusText">no audio loaded · drop a sample to start</div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-header">
+          <span class="section-idx">02</span>
+          <h2 class="section-title">header metadata</h2>
+        </div>
+        <div class="form-grid-2">
+          <label class="field">
+            <span class="field-label">artist name</span>
+            <input type="text" id="inputBrand" value="" placeholder="artist" maxlength="24" />
+          </label>
+          <label class="field">
+            <span class="field-label">index #</span>
+            <input type="text" id="inputNumber" value="" placeholder="001" maxlength="8" />
+          </label>
+          <label class="field">
+            <span class="field-label">sample name</span>
+            <input type="text" id="inputTitle" value="" placeholder="untitled" maxlength="40" />
+          </label>
+          <div class="form-row-split">
+            <label class="field">
+              <span class="field-label">bpm</span>
+              <input type="number" id="inputBpm" value="" placeholder="120" min="40" max="240" step="0.5" />
+            </label>
+            <label class="field">
+              <span class="field-label">key</span>
+              <input type="text" id="inputKey" value="" placeholder="cmin" maxlength="10" />
+            </label>
+          </div>
+          <div class="header-preview-tag" id="headerPreviewTag">[untitled]</div>
+        </div>
+      </div>
+
+      <div class="panel-section panel-grow" id="midiTracksSection">
+        <div class="section-header">
+          <span class="section-idx">03</span>
+          <h2 class="section-title" id="midiTracksTitle">midi tracks</h2>
+          <span class="badge-mono" id="midiSourceBadge">als</span>
+        </div>
+        <p class="helper-note">select active midi tracks or toggle looping on short patterns:</p>
+        <div class="track-list" id="trackListContainer"></div>
+      </div>
+
+      <div class="panel-section lyrics-section" id="lyricsSection" hidden>
+        <div class="section-header">
+          <span class="section-idx">03b</span>
+          <h2 class="section-title">lyrics &amp; vocal sync</h2>
+          <span class="badge-mono" id="lyricsCountBadge">0 words</span>
+        </div>
+        <div class="lyrics-mode-tabs" role="tablist">
+          <button type="button" class="lyrics-tab-btn active" id="lyricsTabEditBtn" data-lyrics-tab="edit"
+            aria-selected="true">paste / transcribe</button>
+          <button type="button" class="lyrics-tab-btn" id="lyricsTabLinesBtn" data-lyrics-tab="lines"
+            aria-selected="false">synced words</button>
+        </div>
+
+        <div id="lyricsEditPane">
+          <textarea id="lyricsPasteInput" class="lyrics-paste-area" rows="4"
+            placeholder="paste lyrics here, or leave blank and auto-transcribe vocals from audio..."></textarea>
+          <div class="lyrics-options-row">
+            <select id="lyricsModelSelect" class="select-compact" aria-label="whisper model"
+              title="whisper or cloud stt transcription model">
+              <optgroup label="local (browser, free)">
+                <option value="tiny" data-size-mb="40">fast · whisper-tiny · 40 mb</option>
+                <option value="base" data-size-mb="136" selected>balanced · whisper-base · 136 mb</option>
+                <option value="small" data-size-mb="286">accurate · whisper-small · 286 mb</option>
+                <option value="medium" data-size-mb="648">heavy · whisper-medium · 648 mb · webgpu</option>
+                <option value="large" data-size-mb="724">best local · whisper-large-v3-turbo · 724 mb · webgpu</option>
+              </optgroup>
+              <optgroup label="cloud stt api">
+                <option value="cloud:openrouter">cloud: openrouter (openai/whisper-large-v3)</option>
+                <option value="cloud:groq">cloud: groq (whisper-large-v3-turbo)</option>
+                <option value="cloud:openai">cloud: openai (whisper-1)</option>
+                <option value="cloud:elevenlabs">cloud: elevenlabs (scribe v1)</option>
+                <option value="cloud:deepgram">cloud: deepgram (nova-3)</option>
+              </optgroup>
+            </select>
+            <select id="lyricsLangSelect" class="select-compact" aria-label="vocal language"
+              title="vocal language hint">
+              <option value="" selected>lang: auto</option>
+              <option value="english">lang: english</option>
+              <option value="japanese">lang: japanese</option>
+              <option value="korean">lang: korean</option>
+              <option value="spanish">lang: spanish</option>
+              <option value="french">lang: french</option>
+              <option value="german">lang: german</option>
+            </select>
+            <select id="lyricsGranularitySelect" class="select-compact lyrics-granularity-select"
+              aria-label="sync granularity" title="sync lyrics as individual words or full sentences">
+              <option value="words" selected>sync: words</option>
+              <option value="sentences">sync: sentences</option>
+            </select>
+            <label class="checkbox-label lyrics-hold-toggle"
+              title="keep each line on screen until the next one starts instead of clearing it after it is sung">
+              <input type="checkbox" id="lyricsHoldLinesCheck" />
+              connect words
+            </label>
+          </div>
+          <p class="lyrics-engine-hint" id="lyricsEngineHint" role="status" aria-live="polite"></p>
+          <div class="lyrics-cloud-key-row" id="lyricsCloudKeyRow" hidden>
+            <input type="password" id="lyricsCloudApiKeyInput" class="input-compact lyrics-cloud-key-input"
+              placeholder="stt api key (stored locally)" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="lyrics-actions-row">
+            <button type="button" class="btn btn-secondary btn-xs" id="lyricsTranscribeBtn"
+              title="run local whisper stt in browser">auto-transcribe</button>
+            <button type="button" class="btn btn-primary btn-xs" id="lyricsSyncPastedBtn"
+              title="fuzzy align pasted lyrics to vocals + onset peaks">auto-sync pasted</button>
+            <button type="button" class="btn btn-ghost btn-xs" id="lyricsClearBtn"
+              title="clear synced lyrics">clear</button>
+            <button type="button" class="btn btn-ghost btn-xs lyrics-cancel-btn" id="lyricsCancelBtn"
+              title="stop after the current audio window" hidden>stop</button>
+          </div>
+        </div>
+
+        <div id="lyricsLinesPane" hidden>
+          <div class="lyrics-lines-list" id="lyricsLinesList"></div>
+          <div class="lyrics-actions-row">
+            <input type="text" id="lyricsAddWordInput" class="input-compact" autocomplete="off"
+              placeholder="type a word…" aria-label="add lyric word at playhead" />
+            <button type="button" class="btn btn-secondary btn-xs" id="lyricsAddWordSubmitBtn"
+              title="insert word at the playhead">add word</button>
+            <button type="button" class="btn btn-ghost btn-xs" id="lyricsDelWordBtn" hidden
+              title="delete the selected word">delete word</button>
+            <button type="button" class="btn btn-ghost btn-xs" id="lyricsRegroupBtn" hidden
+              title="preview merging lyric fragments into sentences and splitting overlong lines">regroup lines</button>
+            <button type="button" class="btn btn-ghost btn-xs" id="lyricsRegroupUndoBtn" hidden
+              title="restore the line grouping from before the last regroup">undo regroup</button>
+          </div>
+        </div>
+
+        <div class="lyrics-status-line" id="lyricsStatusText">ready</div>
+      </div>
+
+      <div class="panel-section loop-playback-section" id="seamlessLoopSection">
+        <div class="toggle-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <label class="checkbox-label">
+            <input type="checkbox" id="seamlessReelLoopCheckbox" checked />
+            <span>seamless reel loop</span>
+          </label>
+          <select id="seamlessLoopStyleSelect" class="select-compact" title="loop return transition style">
+            <option value="datamosh">datamosh</option>
+            <option value="fade">smooth fade</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- column 2: preview stage & waveform timeline -->
+    <section class="panel panel-center" data-pane="stage">
+      <div class="stage-wrapper">
+        <div class="stage-bounds">
+          <div class="canvas-housing">
+            <canvas id="previewCanvas" width="1080" height="1920"></canvas>
+            <div class="render-overlay" id="renderOverlay" hidden>
+              <div class="render-box">
+                <div class="render-title" id="renderStatusTitle">client gpu rendering...</div>
+                <div class="progress-bar-track">
+                  <div class="progress-bar-fill" id="renderProgressBar"></div>
+                </div>
+                <div class="render-meta" id="renderProgressMeta">frame 0 / 1745 (0%)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="timeline-dock">
+        <div class="transport-bar">
+          <div class="transport-left">
+            <button class="btn btn-primary" id="playPauseBtn" type="button">play</button>
+            <button class="btn btn-secondary" id="jumpDropBtn" type="button" title="preview 2 seconds before the drop"
+              hidden>test drop</button>
+            <span class="time-readout" id="timeReadout">00:00.00 / 00:29.09</span>
+          </div>
+          <div class="transport-right">
+            <div class="marker-categories-toolbar" id="markerCategoriesToolbar" role="toolbar" focusgroup="toolbar wrap"
+              aria-label="marker categories" aria-controls="customCuesLayer" hidden></div>
+            <button type="button" class="btn-inline lyrics-timeline-toggle active" id="lyricsTimelineToggleBtn"
+              commandfor="lyricsTimelineBar" command="--toggle-lyrics-bar" aria-pressed="true" aria-expanded="true"
+              title="show or hide synced words bar above waveform" hidden>words</button>
+            <button type="button" class="btn-inline lyrics-cut-overlaps-btn" id="lyricsCutOverlapsBtn"
+              title="split overlapping words at midpoint" hidden>cut overlaps</button>
+            <button type="button" class="btn-inline lyrics-add-word-btn" id="lyricsAddWordBtn"
+              title="add a word at the playhead" hidden>+ word</button>
+            <div class="timeline-zoom-controls" role="group" aria-label="timeline zoom">
+              <button type="button" class="btn-inline timeline-zoom-btn" id="timelineZoomOutBtn"
+                title="zoom out timeline (-)" aria-label="zoom out timeline">−</button>
+              <button type="button" class="btn-inline timeline-zoom-reset" id="timelineZoomResetBtn"
+                title="reset timeline zoom to fit (1x)">1x</button>
+              <button type="button" class="btn-inline timeline-zoom-btn" id="timelineZoomInBtn"
+                title="zoom in timeline (+)" aria-label="zoom in timeline">+</button>
+            </div>
+            <span class="bar-readout" id="barReadout">bar 01.1</span>
+            <span class="drop-badge" id="dropBadgeReadout" hidden>drop · bar 9 (14.55s)</span>
+          </div>
+        </div>
+
+        <div class="lyrics-timeline-bar" id="lyricsTimelineBar" aria-label="synced lyrics timeline" hidden>
+          <div class="lyrics-timeline-track" id="lyricsTimelineTrack">
+            <div class="lyrics-timeline-playhead" id="lyricsTimelinePlayhead"></div>
+          </div>
+        </div>
+
+        <div class="waveform-container" id="waveformContainer" title="click to seek">
+          <canvas id="waveformCanvas" width="900" height="68"></canvas>
+          <div class="waveform-scroller" id="waveformScroller">
+            <div class="waveform-track" id="waveformTrack">
+              <div class="impact-cuts-layer" id="impactCutsLayer" hidden></div>
+              <div class="custom-cues-layer" id="customCuesLayer" hidden></div>
+              <div class="timeline-markers-layer" id="timelineMarkersLayer" hidden></div>
+              <div class="playhead-line" id="timelinePlayhead"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="custom-cues-editor" id="customCuesEditor" hidden>
+          <div class="custom-cues-bar">
+            <div class="custom-cues-cats" id="customCuesCatList" role="toolbar" focusgroup="toolbar wrap"
+              aria-label="active cue category"></div>
+            <div class="custom-cues-actions" id="customCuesActionsToolbar" role="toolbar" focusgroup="toolbar wrap"
+              aria-label="custom cue actions">
+              <button type="button" class="btn-inline" id="addCustomCueBtn" title="add marker at current playhead">+
+                mark</button>
+              <button type="button" class="btn-inline" id="clearCustomCuesBtn" title="clear markers in active category"
+                aria-disabled="true">clear</button>
+            </div>
+          </div>
+          <div class="custom-cues-list" id="customCuesList"></div>
+          <span class="visually-hidden" id="customCuesStatus" role="status"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- column 3: clips selector & fetcher -->
+    <section class="panel panel-clips" id="clipsSection" data-pane="clips">
+      <div class="panel-section panel-grow">
+        <div class="section-header">
+          <span class="section-idx">04</span>
+          <h2 class="section-title" id="clipsSectionTitle">clips</h2>
+        </div>
+
+        <div class="segmented-control" role="radiogroup" aria-label="anime drop playback mode">
+          <button type="button" class="seg-btn active" data-cutmode="chord" id="modeChordBtn">chord cuts</button>
+          <button type="button" class="seg-btn" data-cutmode="single" id="modeSingleBtn">single loop</button>
+          <button type="button" class="seg-btn" data-cutmode="2bar" id="mode2BarBtn">2-bar</button>
+          <button type="button" class="seg-btn" data-cutmode="4bar" id="mode4BarBtn">4-bar</button>
+          <button type="button" class="seg-btn" data-cutmode="impact" id="modeImpactBtn">impacts</button>
+          <button type="button" class="seg-btn" data-cutmode="custom" id="modeCustomBtn">custom</button>
+        </div>
+        <div class="cutmode-hint" id="cutmodeHint">dynamic chord cuts · switches clips on every harmony change</div>
+        <div class="impact-cuts-editor" id="impactCutsEditor" hidden>
+          <div class="impact-cuts-bar">
+            <span class="impact-cuts-label">impact cuts <span class="impact-cuts-count"
+                id="impactCutsCount">0</span></span>
+            <div class="impact-cuts-actions" id="impactCutsToolbar" role="toolbar" focusgroup="toolbar wrap"
+              aria-label="impact cuts">
+              <button type="button" class="btn-inline" id="addImpactCutBtn" title="add impact cut at current playhead">+
+                cut</button>
+              <button type="button" class="btn-inline" id="resetImpactCutsBtn" title="restore auto-detected impact cuts"
+                aria-disabled="true">reset</button>
+            </div>
+          </div>
+          <div class="impact-cuts-list" id="impactCutsList"></div>
+          <span class="visually-hidden" id="impactCutsStatus" role="status"></span>
+        </div>
+        <div class="speedramp-row">
+          <label class="speedramp-label" for="speedRampToggle">
+            <input type="checkbox" id="speedRampToggle" checked />
+            <span class="speedramp-text">speed ramp transitions</span>
+          </label>
+        </div>
+        <div class="clip-transition-group" id="clipTransitionGroup">
+          <div class="clip-transition-row">
+            <label class="clip-transition-label" for="clipTransitionSelect">transition</label>
+            <select id="clipTransitionSelect" class="select-compact clip-transition-select"
+              title="global transition between clip cuts">
+              <option value="none">none</option>
+              <option value="glitch" selected>glitch</option>
+              <option value="pan">pan</option>
+              <option value="datamosh">datamosh</option>
+              <option value="fade">fade</option>
+              <option value="custom" hidden>custom (preset)</option>
+            </select>
+          </div>
+          <div class="clip-transition-dur-row" id="clipTransitionDurRow">
+            <label class="clip-transition-label" for="clipTransitionDurSlider">duration</label>
+            <input type="range" id="clipTransitionDurSlider" min="0.10" max="1.00" step="0.05" value="0.35"
+              aria-valuetext="0.35s" />
+            <span class="slider-val clip-transition-dur-val" id="clipTransitionDurVal">0.35s</span>
+          </div>
+        </div>
+        <div class="speedramp-row">
+          <label class="speedramp-label" for="autoFrameToggle">
+            <input type="checkbox" id="autoFrameToggle" checked />
+            <span class="speedramp-text">auto-frame subject</span>
+          </label>
+        </div>
+
+        <div class="fetcher-bar">
+          <select id="clipSourceSelect" class="select-compact select-source" aria-label="clip source"
+            title="choose clip source">
+            <option value="anime">source: anime (sakugabooru)</option>
+            <option value="real_life">source: real life (coverr / cc)</option>
+            <option value="local">source: my uploaded clips</option>
+          </select>
+          <search>
+            <form id="clipSearchForm" class="clip-search-form" autocomplete="off">
+              <label for="clipCustomQueryInput" class="visually-hidden">search clips</label>
+              <input type="search" id="clipCustomQueryInput" name="q" class="clip-query-input"
+                placeholder="search clips (e.g. night sky, violet_evergarden, ocean)..." autocomplete="off"
+                autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="search" />
+              <div class="fetcher-actions">
+                <button class="btn btn-secondary btn-sm" id="fetchBestClipsBtn" type="submit"
+                  title="fetch top clips matching this search">search best</button>
+                <label class="btn btn-ghost btn-sm btn-file-upload"
+                  title="add local mp4/webm video clips (stored in browser indexeddb)">
+                  +file
+                  <input type="file" id="customClipInput" accept=".mp4,.webm,video/mp4,video/webm" multiple hidden />
+                </label>
+              </div>
+            </form>
+          </search>
+        </div>
+
+        <div class="clips-toolbar-row">
+          <span class="clips-count-label" id="clipsCountLabel">0 clips</span>
+          <div class="clips-toolbar-actions">
+            <button type="button" class="btn-inline playlist-toggle-btn" id="togglePlaylistStripBtn"
+              aria-expanded="false" aria-controls="clipPlaylistStrip" title="open or close clip playlist order strip">
+              <span>playlist</span>
+              <span class="favorites-count" id="playlistCountBadge">0</span>
+            </button>
+            <button type="button" class="btn-inline favorites-toggle-btn" id="toggleFavoritesDrawerBtn"
+              aria-expanded="false" aria-controls="favoritesDrawer" title="open project favorites slide-out">
+              <span aria-hidden="true">★</span>
+              <span>favorites</span>
+              <span class="favorites-count" id="favoritesCountBadge">0</span>
+            </button>
+          </div>
+        </div>
+
+        <section class="clip-playlist-strip" id="clipPlaylistStrip" aria-label="clip playlist" hidden>
+          <div class="clip-playlist-header">
+            <span class="clip-playlist-title">
+              <span>playlist order</span>
+              <span class="clip-playlist-sub" id="clipPlaylistLimitLabel">0 clips</span>
+            </span>
+            <div class="clip-playlist-header-actions">
+              <button type="button" class="btn-inline clip-playlist-clear-btn" id="openPlaylistEditorBtn"
+                title="open larger playlist &amp; clip trim editor" disabled>editor</button>
+              <button type="button" class="btn-inline clip-playlist-clear-btn" id="clearPlaylistBtn"
+                title="clear all clips from playlist">clear</button>
+            </div>
+          </div>
+          <div class="clip-playlist-track" id="clipPlaylistTrack" role="list"
+            aria-label="ordered clips, click to trim or drag to reorder"></div>
+        </section>
+
+        <div class="clips-grid-stage" id="clipsGridStage">
+          <div class="clip-grid" id="clipGridContainer"></div>
+
+          <div class="favorites-drawer-scrim" id="favoritesDrawerScrim" hidden></div>
+          <aside class="favorites-drawer" id="favoritesDrawer" aria-label="project favorites" hidden inert>
+            <div class="favorites-drawer-header">
+              <div class="favorites-drawer-title">
+                <span aria-hidden="true">★</span>
+                <span>project favorites</span>
+                <span class="favorites-count" id="favoritesDrawerCount">0</span>
+              </div>
+              <button type="button" class="btn-inline favorites-close-btn" id="closeFavoritesDrawerBtn"
+                aria-label="close favorites">close</button>
+            </div>
+            <div class="clip-grid favorites-clip-grid" id="favoritesGridContainer"></div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- column 4: design optics & export -->
+    <section class="panel panel-right" data-pane="optics">
+      <div class="panel-section panel-grow panel-controls">
+        <div class="section-header">
+          <span class="section-idx">05</span>
+          <h2 class="section-title" id="templateSectionTitle">optics &amp; style</h2>
+          <div class="header-actions" id="controlsSectionActions" hidden>
+            <button class="btn-inline" id="toggleControlSectionsBtn" type="button"
+              title="collapse or expand all control sections">collapse all</button>
+          </div>
+        </div>
+
+        <div id="templateControlsContainer" class="controls-scroll">
+          <!-- populated by active design template -->
+        </div>
+      </div>
+
+      <div class="panel-section export-footer">
+        <div class="section-header">
+          <span class="section-idx">06</span>
+          <h2 class="section-title">export mp4</h2>
+        </div>
+        <div class="export-actions">
+          <button class="btn btn-primary btn-block" id="renderMp4Btn" type="button">
+            render 1080×1920 60fps mp4 (client gpu)
+          </button>
+          <div class="export-sub-actions">
+            <a class="btn btn-secondary btn-block" id="downloadLastRenderBtn" hidden download="samplevis.mp4">
+              download mp4
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- byok ai settings modal -->
+  <div class="modal-backdrop" id="aiSettingsModal" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>ai settings · bring your own key (byok)</h3>
+        <button class="modal-close-x" id="closeAiSettingsBtn" type="button" aria-label="close"
+          title="close [esc]">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="design-modal-subtext">configure your personal api key or local model for viz. credentials stay
+          strictly in your browser's local storage.</p>
+
+        <label class="field">
+          <span class="field-label">provider</span>
+          <select id="byokProviderSelect">
+            <option value="openrouter">OpenRouter (Haiku 4.5 / Gemini 3.8 Flash / DeepSeek V4.1 / GPT-5)</option>
+            <option value="deepinfra">DeepInfra (DeepSeek V4.1 / V4 Pro / Qwen 3.8 / Llama 3.3)</option>
+            <option value="deepseek">DeepSeek API (deepseek-flash / deepseek-chat / reasoner)</option>
+            <option value="gemini">Google Gemini API (gemini-3.8-flash / 2.5-flash / 2.5-pro)</option>
+            <option value="anthropic">Anthropic Claude API (Haiku 4.5 / Sonnet 4)</option>
+            <option value="openai">OpenAI API (gpt-4.1-mini / gpt-5 / o4-mini)</option>
+            <option value="custom">Custom / Local Model (Ollama, LM Studio, vLLM)</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field-label" id="byokApiKeyLabel">api key</span>
+          <input type="password" id="byokApiKeyInput" placeholder="sk-... (optional for local models)"
+            autocomplete="off" />
+        </label>
+
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">model name</span>
+            <input type="text" id="byokModelInput" list="byokModelSuggestions" value="anthropic/claude-haiku-4.5"
+              placeholder="model id" />
+            <datalist id="byokModelSuggestions"></datalist>
+          </label>
+          <label class="field">
+            <span class="field-label">api base url</span>
+            <input type="text" id="byokBaseUrlInput" value="https://openrouter.ai/api/v1" placeholder="https://..." />
+          </label>
+        </div>
+        <div class="byok-model-picks" id="byokQuickModelPicks" aria-label="quick model presets"></div>
+
+        <details class="byok-advanced-details" id="byokCustomOptions">
+          <summary class="field-label" style="cursor: pointer; margin: 10px 0 6px;">advanced &amp; custom protocol
+            options</summary>
+          <div class="field-row">
+            <label class="field">
+              <span class="field-label">api protocol</span>
+              <select id="byokProtocolSelect">
+                <option value="openai">OpenAI-Compatible (/chat/completions)</option>
+                <option value="anthropic">Anthropic Messages (/messages)</option>
+                <option value="gemini">Google Gemini (:generateContent)</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">temperature</span>
+              <input type="number" id="byokTemperatureInput" value="0.35" min="0" max="2" step="0.05" />
+            </label>
+            <label class="field">
+              <span class="field-label">max tokens</span>
+              <input type="number" id="byokMaxTokensInput" value="65536" min="256" max="131072" step="128" />
+            </label>
+          </div>
+          <label class="checkbox-row" style="margin: 6px 0;">
+            <input type="checkbox" id="byokJsonModeCheckbox" checked />
+            <span>strict json mode (response_format: json_object)</span>
+          </label>
+          <label class="field">
+            <span class="field-label">extra headers (optional json)</span>
+            <input type="text" id="byokExtraHeadersInput" placeholder='{"X-Custom-Header": "value"}' />
+          </label>
+        </details>
+
+        <div class="modal-actions" style="margin-top: 14px; display: flex; align-items: center; gap: 10px;">
+          <button class="btn btn-primary" id="saveAiSettingsBtn" type="button">save settings</button>
+          <button class="btn btn-ghost" id="testAiSettingsBtn" type="button">test connection</button>
+          <span class="save-status-msg" id="aiSettingsSaveStatus"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- preset not found / load error modal -->
+  <div class="modal-backdrop" id="presetErrorModal" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>preset could not be loaded</h3>
+      </div>
+      <div class="modal-body">
+        <p class="design-modal-subtext" id="presetErrorMessage">
+          the requested preset could not be found in local storage or on the server.
+        </p>
+        <div class="modal-actions" style="margin-top: 14px; display: flex; gap: 10px;">
+          <a href="/gallery.html" class="btn btn-primary">back to gallery</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- unsaved changes confirmation modal -->
+  <div class="modal-backdrop" id="unsavedLeaveModal" hidden>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>unsaved changes</h3>
+        <button class="modal-close-x" id="unsavedCancelXBtn" type="button" aria-label="close"
+          title="close [esc]">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="design-modal-subtext" id="unsavedLeaveMessage">
+          you have unsaved changes in this project. save before closing?
+        </p>
+        <div class="modal-actions" style="margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px;">
+          <button type="button" class="btn btn-primary" id="unsavedSaveBtn">save &amp; close</button>
+          <button type="button" class="btn btn-ghost btn-danger-ghost" id="unsavedDiscardBtn">discard changes</button>
+          <button type="button" class="btn btn-ghost" id="unsavedCancelBtn">keep editing</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- save copy as dialog -->
+  <dialog class="modal-dialog" id="saveCopyAsDialog" closedby="any" aria-labelledby="saveCopyAsDialogTitle">
+    <div class="modal-card modal-dialog-card">
+      <div class="modal-header">
+        <h3 id="saveCopyAsDialogTitle">save copy as</h3>
+        <button class="modal-close-x" id="saveCopyCancelXBtn" type="button" aria-label="close"
+          title="close [esc]">&times;</button>
+      </div>
+      <form class="modal-body save-copy-form" id="saveCopyAsForm">
+        <label class="field">
+          <span class="field-label">new project name</span>
+          <input type="text" id="saveCopyNameInput" maxlength="80" spellcheck="false" required autofocus />
+        </label>
+        <label class="field">
+          <span class="field-label">description</span>
+          <input type="text" id="saveCopyDescInput" maxlength="200" spellcheck="false" />
+        </label>
+        <label class="speedramp-toggle save-copy-include-toggle">
+          <input type="checkbox" id="saveCopyIncludeStateCheck" checked />
+          <span class="speedramp-text">include loaded sample audio, midi, lyrics &amp; clip playlist</span>
+        </label>
+        <p class="save-status-msg" id="saveCopyErrorMsg" role="alert" hidden></p>
+        <div class="modal-actions modal-dialog-actions">
+          <button type="submit" class="btn btn-primary" id="saveCopyConfirmBtn">create copy</button>
+          <button type="button" class="btn btn-ghost" id="saveCopyCancelBtn">cancel</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- lyric phrase regrouping preview -->
+  <dialog class="modal-dialog lyrics-regroup-dialog" id="lyricsRegroupDialog" closedby="any"
+    aria-labelledby="lyricsRegroupTitle">
+    <div class="modal-card lyrics-regroup-card">
+      <div class="modal-header">
+        <h3 id="lyricsRegroupTitle">regroup lyric lines</h3>
+        <button class="modal-close-x" id="lyricsRegroupCloseXBtn" type="button" aria-label="close"
+          title="close [esc]">&times;</button>
+      </div>
+      <div class="modal-body lyrics-regroup-body">
+        <p class="lyrics-regroup-summary" id="lyricsRegroupSummary"></p>
+        <div class="lyrics-regroup-list" id="lyricsRegroupList"></div>
+        <div class="modal-actions modal-dialog-actions">
+          <button type="button" class="btn btn-primary" id="lyricsRegroupApplyBtn">apply regrouping</button>
+          <button type="button" class="btn btn-ghost" id="lyricsRegroupCancelBtn">cancel</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- playlist clip trim & reorder dialog -->
+  <dialog class="modal-dialog playlist-editor-dialog" id="playlistEditorDialog" closedby="any"
+    aria-labelledby="playlistEditorTitle">
+    <div class="modal-card playlist-editor-card">
+      <div class="modal-header">
+        <div class="playlist-editor-heading">
+          <h3 id="playlistEditorTitle">clip editor</h3>
+          <span class="playlist-editor-slot-meta" id="playlistEditorSlotMeta">slot 1</span>
+        </div>
+        <button class="modal-close-x" id="playlistEditorCloseXBtn" type="button" aria-label="close"
+          title="close [esc]">&times;</button>
+      </div>
+      <div class="modal-body playlist-editor-body">
+        <div class="playlist-editor-layout">
+          <div class="playlist-editor-stage">
+            <div class="playlist-editor-video-wrap">
+              <video id="playlistEditorVideo" muted playsinline preload="auto"></video>
+              <div class="playlist-editor-empty" id="playlistEditorEmpty" hidden>no clip selected</div>
+            </div>
+            <div class="playlist-editor-scrubber">
+              <div class="playlist-editor-timeline" id="playlistEditorTimeline" role="group"
+                aria-label="clip trim timeline">
+                <div class="playlist-editor-timeline-bg"></div>
+                <div class="playlist-editor-trim-region" id="playlistEditorTrimRegion"></div>
+                <div class="playlist-editor-playhead" id="playlistEditorPlayhead"></div>
+                <button type="button" class="playlist-editor-handle playlist-editor-handle-in"
+                  id="playlistEditorInHandle" title="drag start (in) point" aria-label="drag start time"></button>
+                <button type="button" class="playlist-editor-handle playlist-editor-handle-out"
+                  id="playlistEditorOutHandle" title="drag end (out) point" aria-label="drag end time"></button>
+              </div>
+              <div class="playlist-editor-controls">
+                <div class="playlist-editor-transport-group">
+                  <button type="button" class="btn-inline" id="playlistEditorPlayBtn">play</button>
+                  <span class="playlist-editor-time-readout" id="playlistEditorTimeReadout">0.00s / 0.00s</span>
+                </div>
+                <div class="playlist-editor-trim-actions">
+                  <button type="button" class="btn btn-primary playlist-editor-set-btn" id="playlistEditorSetStartBtn"
+                    title="set start time to playhead">set start</button>
+                  <label class="playlist-editor-num-field" title="start time in seconds">
+                    <span>start</span>
+                    <input type="number" id="playlistEditorStartInput" min="0" step="0.1" value="0.0"
+                      aria-label="clip start time in seconds" />
+                    <span>s</span>
+                  </label>
+                  <button type="button" class="btn btn-primary playlist-editor-set-btn" id="playlistEditorSetEndBtn"
+                    title="set end time to playhead">set end</button>
+                  <label class="playlist-editor-num-field" title="end time in seconds">
+                    <span>end</span>
+                    <input type="number" id="playlistEditorEndInput" min="0" step="0.1" value="0.0"
+                      aria-label="clip end time in seconds" />
+                    <span>s</span>
+                  </label>
+                  <label class="playlist-editor-num-field playlist-editor-speed-field"
+                    title="playback speed percentage">
+                    <span>speed</span>
+                    <input type="number" id="playlistEditorSpeedInput" min="25" max="400" step="5" value="100"
+                      aria-label="clip speed percentage" />
+                    <span>%</span>
+                  </label>
+                  <button type="button" class="btn-inline" id="playlistEditorResetStartBtn"
+                    title="reset start, end, and speed">reset</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="playlist-editor-list-pane">
+            <div class="playlist-editor-list-head">
+              <span class="playlist-editor-list-title">playlist order</span>
+              <span class="playlist-editor-list-count" id="playlistEditorCountLabel">0 clips</span>
+            </div>
+            <div class="playlist-editor-grid" id="playlistEditorGrid" role="list"
+              aria-label="playlist clips, drag to reorder or click to edit"></div>
+          </div>
+        </div>
+        <div class="modal-actions modal-dialog-actions">
+          <button type="button" class="btn btn-primary" id="playlistEditorDoneBtn">done</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- right slide-in sidebar: viz chat -->
+  <aside class="viz-sidebar viz-sidebar-right" id="vizStudioDrawer" hidden inert>
+    <div class="viz-drawer-header">
+      <div class="viz-drawer-title-group">
+        <span class="viz-drawer-title">viz</span>
+      </div>
+      <div class="viz-header-actions">
+        <button class="viz-icon-btn" id="vizNewChatBtn" type="button" title="start a new chat thread">+ new</button>
+        <button class="viz-icon-btn" id="vizHistoryToggleBtn" type="button" title="view chat history"
+          aria-expanded="false" aria-controls="vizHistoryPanel">history</button>
+        <button class="viz-icon-btn" id="vizNotesToggleBtn" type="button" title="project notes &amp; rules for viz"
+          aria-expanded="false" aria-controls="vizNotesPanel">notes</button>
+        <button class="viz-icon-btn" id="openSourceDrawerBtn" type="button" title="inspect visual source code"
+          aria-expanded="false">source</button>
+        <button class="viz-icon-btn" id="closeVizStudioBtn" type="button" title="close sidebar [esc]">×</button>
+      </div>
+    </div>
+
+    <!-- thread history panel -->
+    <div class="viz-history-panel" id="vizHistoryPanel" hidden>
+      <div class="viz-history-bar">
+        <span class="viz-history-heading">conversations</span>
+        <button type="button" class="btn-inline" id="vizClearHistoryBtn">clear all</button>
+      </div>
+      <div class="viz-history-list" id="vizHistoryList"></div>
+    </div>
+
+    <!-- shared per-project notepad for viz & user -->
+    <div class="viz-notes-panel" id="vizNotesPanel" hidden>
+      <div class="viz-history-bar">
+        <label class="viz-history-heading" for="vizNotesInput">project notes</label>
+        <div class="viz-notes-bar-actions">
+          <span class="viz-notes-counter" id="vizNotesCounter" aria-live="off">0 / 100 lines</span>
+          <button type="button" class="btn-inline" id="vizClearNotesBtn">clear</button>
+        </div>
+      </div>
+      <div class="viz-notes-body">
+        <p class="viz-notes-hint" id="vizNotesHint">shared rules &amp; facts sent to viz across chats (max 100 lines ·
+          4,000 chars).</p>
+        <textarea id="vizNotesInput" class="viz-notes-textarea" name="projectNotes"
+          aria-describedby="vizNotesHint vizNotesCounter" spellcheck="false"
+          placeholder="- only use frame.lyrics for big words&#10;- keep rotations subtle (±6°)"></textarea>
+      </div>
+    </div>
+
+    <!-- scrollable conversation stream -->
+    <div class="viz-chat-feed" id="vizChatFeed">
+      <div class="viz-empty-state" id="vizEmptyState">
+        <div class="viz-empty-title">viz · visual design agent</div>
+        <p class="viz-empty-sub">describe shaders, audio-reactive overlays, or ask how your current preset works.</p>
+        <div class="viz-starter-list">
+          <button type="button" class="viz-starter-btn viz-chip-btn"
+            data-prompt="Let's design a sunset visualizer together. Pitch 3 visual directions and ask what mood or foreground elements I'd like.">
+            <span class="viz-starter-name">+ brainstorm sunset</span>
+            <span class="viz-starter-desc">ask questions &amp; pitch creative directions first</span>
+          </button>
+          <button type="button" class="viz-starter-btn viz-chip-btn"
+            data-prompt="Add a soft teal aurora glow shader pulsing with the bass, plus subtle chord typography in the top right.">
+            <span class="viz-starter-name">+ aurora glow &amp; chord hud</span>
+            <span class="viz-starter-desc">bass-reactive aurora shader with editorial typography</span>
+          </button>
+          <button type="button" class="viz-starter-btn viz-chip-btn"
+            data-prompt="Enable the anime clips module with chord-cut chromatic aberration and subtle 35mm grain controls.">
+            <span class="viz-starter-name">+ anime clips &amp; 35mm grain</span>
+            <span class="viz-starter-desc">enable clips with beat bloom &amp; film grain sliders</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="viz-chat-messages" id="vizChatMessages"></div>
+    </div>
+
+    <!-- pinned ide-style chat composer -->
+    <div class="viz-composer-wrap">
+      <div class="viz-key-banner" id="vizKeyNotice" hidden>
+        <span>no api key configured yet.</span>
+        <button type="button" class="btn-inline" id="vizOpenByokLink">open ai settings [byok]</button>
+      </div>
+
+      <div class="viz-composer" id="vizComposerBox">
+        <div class="viz-attachment-strip" id="vizAttachmentStrip" hidden></div>
+        <input type="file" id="vizImageInput"
+          accept="image/*,video/*,.ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2,application/font-woff,application/font-woff2,application/x-font-ttf,application/x-font-opentype"
+          multiple hidden />
+        <textarea id="vizPromptInput" class="viz-composer-input" rows="2"
+          placeholder="ask viz anything, drop an image, video, or font, or describe a vibe... (enter to send)"></textarea>
+        <div class="viz-composer-toolbar">
+          <div class="viz-composer-meta">
+            <button type="button" class="viz-icon-btn" id="vizAttachImageBtn" title="attach image, video, or font">+
+              media</button>
+            <button type="button" class="viz-icon-btn" id="vizAttachCanvasBtn"
+              title="capture preview canvas screenshot">+ canvas</button>
+            <button type="button" class="viz-icon-btn" id="vizAttachLogsBtn"
+              title="attach live renderer logs &amp; frame diagnostics">+ logs</button>
+            <button type="button" class="viz-model-btn" id="vizModelChip"
+              title="configure ai provider &amp; model [byok]">model</button>
+            <button type="button" class="viz-icon-btn" id="vizSavePresetBtn" title="save active preset">save</button>
+            <span class="viz-status-bar" id="vizStudioStatus">ready</span>
+          </div>
+          <div class="viz-composer-actions">
+            <button type="button" class="viz-icon-btn" id="vizUndoBtn" title="undo last change" disabled>undo</button>
+            <button type="button" class="btn btn-primary viz-send-btn" id="vizGenerateBtn"
+              title="send message [enter]">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- source code inspector & editor (slides out left from viz sidebar) -->
+  <aside class="viz-sidebar viz-sidebar-left" id="sourceCodeDrawer" hidden inert>
+    <div class="viz-drawer-header">
+      <div class="viz-drawer-title-group">
+        <span class="viz-drawer-title">source code</span>
+        <span class="code-hint">shader · overlay · ui</span>
+      </div>
+      <button class="modal-close-x" id="closeSourceDrawerBtn" type="button" aria-label="close"
+        title="close [esc]">&times;</button>
+    </div>
+
+    <div class="viz-drawer-tabs" role="tablist">
+      <button type="button" class="viz-tab-btn active" data-viz-tab="shader">1. shader</button>
+      <button type="button" class="viz-tab-btn" data-viz-tab="overlay">2. overlay</button>
+      <button type="button" class="viz-tab-btn" data-viz-tab="ui">3. ui &amp; modules</button>
+    </div>
+
+    <div class="viz-drawer-body">
+      <!-- tab 1: shaderBox -->
+      <div class="viz-tab-pane active" id="vizPaneShader">
+        <div class="code-pane-header">
+          <span class="field-label">shaderBox.fragmentShader (layer 1 &middot; glsl es 3.00 / 1.00)</span>
+          <span class="code-hint">u_time, u_bass, u_chord_hit, u_video_tex, u_image_tex</span>
+        </div>
+        <textarea id="codeEditorShader" class="viz-code-editor" spellcheck="false"></textarea>
+
+        <div class="code-pane-header" style="margin-top: 10px;">
+          <span class="field-label">shaderBox.postShader (layer 3 &middot; master post-fx &middot; optional)</span>
+          <span class="code-hint">u_scene_tex, u_overlay_tex, u_bloom_tex</span>
+        </div>
+        <textarea id="codeEditorPostShader" class="viz-code-editor" spellcheck="false"></textarea>
+      </div>
+
+      <!-- tab 2: frontUiBox -->
+      <div class="viz-tab-pane" id="vizPaneOverlay" hidden>
+        <div class="code-pane-header">
+          <span class="field-label">frontUiBox.initScript (runs once on load)</span>
+        </div>
+        <textarea id="codeEditorInit" class="viz-code-editor viz-code-editor-sm" spellcheck="false"></textarea>
+
+        <div class="code-pane-header" style="margin-top: 10px;">
+          <span class="field-label">frontUiBox.drawScript (60fps canvas 2d)</span>
+          <span class="code-hint">frame.chord, frame.clips.drawClip, frame.assets.drawImage</span>
+        </div>
+        <textarea id="codeEditorDraw" class="viz-code-editor" spellcheck="false"></textarea>
+      </div>
+
+      <!-- tab 3: controlsBox & modules -->
+      <div class="viz-tab-pane" id="vizPaneUi" hidden>
+        <div class="code-pane-header">
+          <span class="field-label">modules &amp; controlsBox (json)</span>
+        </div>
+        <textarea id="codeEditorUi" class="viz-code-editor" spellcheck="false"></textarea>
+      </div>
+    </div>
+
+    <div class="viz-drawer-footer">
+      <div class="viz-status-bar" id="sourceCodeStatus">ready</div>
+      <div class="viz-footer-actions">
+        <button type="button" class="btn btn-primary" id="vizApplyCodeBtn">apply &amp; reload</button>
+      </div>
+    </div>
+  </aside>
+
+  <script src="/vendor/mp4-muxer.js"></script>
+  <script src="/js/services/projectBundleService.js"></script>
+  <script src="/js/services/lyricsService.js"></script>
+  <script src="/js/services/storageAdapter.js"></script>
+  <script src="/js/services/presetDescription.js"></script>
+  <script src="/js/services/presetService.js"></script>
+  <script src="/js/services/thinkingLines.js"></script>
+  <script src="/js/services/vizSkill.js"></script>
+  <script src="/js/services/presetPatch.js"></script>
+  <script src="/js/services/aiProvider.js"></script>
+  <script src="/js/engine/loopUtils.js"></script>
+  <script src="/js/engine/audioSignals.js"></script>
+  <script src="/js/engine/motionKit.js"></script>
+  <script src="/js/engine/elementLibrary.js"></script>
+  <script src="/js/engine/reelEngine.js"></script>
+  <script src="/js/engine/rendererFrame.js"></script>
+  <script src="/js/engine/fontLibrary.js"></script>
+  <script src="/js/engine/sandboxEngine.js"></script>
+  <script src="/js/engine/controlsManager.js"></script>
+  <script src="/js/presets/starterPresets.js"></script>
+  <script src="/js/visualizer.js"></script>
+  <script src="/js/clientAnalyzer.js"></script>
+  <script src="/js/templates/templateRegistry.js"></script>
+  <script src="/js/templates/constellationsTemplate.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+
+</html>

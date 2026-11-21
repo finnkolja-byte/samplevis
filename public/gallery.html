@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>samplevis 0.1.1 (beta) · preset gallery &amp; visual templates</title>
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    html,
+    body {
+      height: auto;
+      min-height: 100dvh;
+      overflow-y: auto !important;
+      overflow-x: clip;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      flex: 0 0 auto;
+    }
+
+    .gallery-container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: clamp(20px, 4vw, 36px) clamp(14px, 3.5vw, 24px) 64px;
+      display: flex;
+      flex-direction: column;
+      gap: clamp(20px, 3vw, 32px);
+    }
+
+    .gallery-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 20px;
+      box-shadow: inset 0 -1px 0 rgb(255 255 255 / 0.5);
+    }
+
+    .gallery-title-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .gallery-title {
+      font-family: var(--font-brand);
+      font-weight: 600;
+      font-size: clamp(20px, 2.8vw, 24px);
+      letter-spacing: -0.02em;
+      color: var(--ink-loud);
+    }
+
+    .gallery-subtitle {
+      font-size: 13px;
+      color: var(--ink-muted);
+    }
+
+    .gallery-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      max-width: 100%;
+      min-width: 0;
+    }
+
+    .gallery-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      background: var(--fill-subtle);
+      padding: 3px;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-field);
+      width: fit-content;
+      max-width: 100%;
+    }
+
+    .gallery-tab-btn {
+      background: transparent;
+      border: none;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--ink-muted);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all var(--dur-fast) var(--ease-standard);
+    }
+
+    .gallery-tab-btn:hover {
+      color: var(--ink-loud);
+    }
+
+    .gallery-tab-btn.active {
+      background: var(--surface);
+      color: var(--ink-loud);
+      font-weight: 500;
+      box-shadow: var(--shadow-raised);
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 285px), 1fr));
+      gap: 20px;
+    }
+
+    .gallery-card-wrap {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .gallery-card-wrap:hover,
+    .gallery-card-wrap:focus-within {
+      z-index: 25;
+    }
+
+    .gallery-card {
+      position: relative;
+      z-index: 2;
+      flex: 1;
+      background: var(--surface-glass);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: var(--shadow-raised);
+      transition:
+        transform var(--dur-base) var(--ease-out),
+        box-shadow var(--dur-base) var(--ease-out),
+        border-color var(--dur-fast) var(--ease-standard);
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .gallery-card-wrap:hover .gallery-card,
+    .gallery-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-float);
+      border-color: var(--line-hover);
+    }
+
+    .gallery-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .gallery-card-title {
+      font-family: var(--font-brand);
+      font-weight: 600;
+      font-size: 17px;
+      color: var(--ink-loud);
+      letter-spacing: -0.01em;
+    }
+
+    .gallery-card-desc {
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--ink-muted);
+      flex: 0 0 auto;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      line-clamp: 3;
+      overflow: hidden;
+    }
+
+    .gallery-card.is-user-preset .gallery-card-title,
+    .gallery-card.is-user-preset .gallery-card-desc {
+      text-transform: none;
+    }
+
+    .gallery-card-preview {
+      width: 100%;
+      height: 148px;
+      background: linear-gradient(135deg, #121829 0%, #1e2c51 55%, #2d4c49 100%);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow:
+        inset 0 0 0 1px rgb(255 255 255 / 0.25),
+        0 4px 12px rgb(var(--shade-rgb) / 0.08);
+    }
+
+    .gallery-card-thumb {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: blur(5px) saturate(1.15);
+      transform: scale(1.09);
+      transition: transform var(--dur-base) var(--ease-out), filter var(--dur-base) var(--ease-out);
+      pointer-events: none;
+    }
+
+    .gallery-card:hover .gallery-card-thumb {
+      filter: blur(3px) saturate(1.2);
+      transform: scale(1.05);
+    }
+
+    .gallery-card-preview::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgb(255 255 255 / 0.08) 0%, transparent 45%, rgb(12 22 20 / 0.22) 100%);
+      pointer-events: none;
+    }
+
+    .gallery-hover-bar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% - 12px);
+      z-index: 1;
+      background: #16382f;
+      border: 1px solid #0f2922;
+      border-top: none;
+      border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+      padding: 22px 16px 14px;
+      background: rgb(255 255 255 / 0.78);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(46px, 1fr));
+      gap: 6px;
+      padding: 20px 12px 12px;
+      box-shadow: 0 14px 28px rgb(var(--shade-rgb) / 0.12);
+      opacity: 0;
+      transform: translateY(-14px);
+      pointer-events: none;
+      transition:
+        transform var(--dur-base) var(--ease-out),
+        opacity var(--dur-fast) var(--ease-standard);
+    }
+
+    .gallery-card-wrap:hover .gallery-hover-bar,
+    .gallery-card-wrap:focus-within .gallery-hover-bar {
+      opacity: 1;
+      transform: translateY(-2px);
+      pointer-events: auto;
+    }
+
+    .hover-bar-btn {
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      padding: 7px 6px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-shadow: 0 1px 2px rgb(var(--shade-rgb) / 0.04);
+      transition: background-color var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard);
+    }
+
+    .hover-bar-btn:active {
+      transform: translateY(1px);
+    }
+
+    .hover-bar-btn.rename {
+      background: #e7f4ec;
+      border-color: rgb(94 138 125 / 0.25);
+      color: #2f5b4e;
+    }
+
+    .hover-bar-btn.rename:hover {
+      background: #d8ecdf;
+      border-color: rgb(94 138 125 / 0.45);
+    }
+
+    .hover-bar-btn.edit-desc {
+      background: #e7f1f8;
+      border-color: rgb(70 101 129 / 0.22);
+      color: #2c5166;
+    }
+
+    .hover-bar-btn.edit-desc:hover {
+      background: #d7e7f2;
+      border-color: rgb(70 101 129 / 0.42);
+    }
+
+    .hover-bar-btn.export {
+      background: #eaf7ec;
+      border-color: rgb(131 202 144 / 0.45);
+      color: #2c643f;
+    }
+
+    .hover-bar-btn.export:hover {
+      background: #d8f0dc;
+      border-color: rgb(131 202 144 / 0.7);
+    }
+
+    .hover-bar-btn.duplicate {
+      background: #eef6f1;
+      border-color: rgb(94 138 125 / 0.3);
+      color: #2f5b4e;
+    }
+
+    .hover-bar-btn.duplicate:hover {
+      background: #dff0e6;
+      border-color: rgb(94 138 125 / 0.55);
+    }
+
+    /* freeing cloud space is neutral, not destructive: the project stays */
+    .hover-bar-btn.free-space {
+      background: #eef1f6;
+      border-color: rgb(63 77 99 / 0.2);
+      color: #3f4d63;
+    }
+
+    .hover-bar-btn.free-space:hover {
+      background: #e2e7f0;
+      border-color: rgb(63 77 99 / 0.38);
+    }
+
+    .hover-bar-btn.delete {
+      background: #fdf0f0;
+      border-color: rgb(180 35 24 / 0.22);
+      color: #a63238;
+    }
+
+    .hover-bar-btn.delete:hover {
+      background: #fadede;
+      border-color: rgb(180 35 24 / 0.4);
+    }
+
+    .modal-close-x {
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--ink-muted);
+      font-size: 17px;
+      line-height: 1;
+      cursor: pointer;
+      transition: all var(--dur-fast) var(--ease-standard);
+    }
+
+    .modal-close-x:hover {
+      color: var(--ink-loud);
+      background: var(--fill-subtle);
+      border-color: var(--line-strong);
+    }
+
+    #presetMetaModal .modal-header {
+      padding: 18px 24px;
+    }
+
+    #presetMetaModal .modal-body {
+      padding: 20px 24px 24px;
+      gap: 16px;
+    }
+
+    #presetMetaModal .modal-actions {
+      justify-content: flex-end;
+      padding-top: 4px;
+    }
+
+    .meta-modal-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .meta-modal-field label {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--ink-muted);
+    }
+
+    .meta-modal-field input,
+    .meta-modal-field textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+      color: var(--ink-loud);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      resize: vertical;
+    }
+
+    .meta-modal-field input:focus,
+    .meta-modal-field textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-soft);
+    }
+
+    .gallery-empty-state {
+      grid-column: 1 / -1;
+      background: var(--surface-glass);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px dashed var(--line-strong);
+      border-radius: var(--radius-xl);
+      padding: 48px 24px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      box-shadow: var(--shadow-raised);
+    }
+
+    .gallery-empty-title {
+      font-family: var(--font-brand);
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--ink-loud);
+    }
+
+    .gallery-empty-desc {
+      font-size: 12.5px;
+      color: var(--ink-muted);
+      max-width: 380px;
+      line-height: 1.5;
+    }
+
+    .tab-badge {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--ink-faint);
+      margin-left: 4px;
+    }
+
+    .gallery-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+      margin-top: auto;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+    }
+
+    .gallery-card-btn {
+      color: var(--accent-ink);
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .new-preset-card {
+      border: 1px dashed var(--line-strong);
+      background: var(--surface-raised);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 280px;
+      cursor: pointer;
+    }
+
+    .new-preset-card:hover {
+      border-color: var(--accent);
+      background: var(--surface);
+      box-shadow: var(--shadow-raised-hover), 0 0 0 4px var(--accent-soft);
+    }
+
+    .new-preset-icon {
+      font-size: 32px;
+      color: var(--accent-ink);
+      margin-bottom: 12px;
+      line-height: 1;
+    }
+
+    .new-preset-title {
+      font-family: var(--font-brand);
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--ink-loud);
+      margin-bottom: 4px;
+    }
+
+    .new-preset-desc {
+      font-size: 12px;
+      color: var(--ink-muted);
+      max-width: 220px;
+      line-height: 1.4;
+    }
+
+    @media (hover: none), (pointer: coarse), (max-width: 760px) {
+      .gallery-card-wrap:hover .gallery-card,
+      .gallery-card:hover {
+        transform: none;
+      }
+
+      .gallery-hover-bar {
+        position: static;
+        opacity: 1;
+        transform: none;
+        pointer-events: auto;
+        margin-top: -10px;
+        padding: 18px 12px 12px;
+        box-shadow: var(--shadow-raised);
+      }
+
+      .gallery-card-wrap:hover .gallery-hover-bar,
+      .gallery-card-wrap:focus-within .gallery-hover-bar {
+        transform: none;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .gallery-header {
+        align-items: stretch;
+      }
+
+      .gallery-actions {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .gallery-tabs {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+      }
+
+      .gallery-tab-btn {
+        flex: 1 1 auto;
+        padding: 7px 10px;
+        font-size: 10.5px;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ambient backdrop -->
+  <div class="ambient-orb ambient-orb-1" aria-hidden="true"></div>
+  <div class="ambient-orb ambient-orb-2" aria-hidden="true"></div>
+  <div class="ambient-orb ambient-orb-3" aria-hidden="true"></div>
+
+  <!-- top bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="brand-lockup">
+        <span class="brand-mark">samplevis</span>
+        <span class="brand-beta-badge" title="samplevis 0.1.1 (beta)">beta</span>
+      </div>
+      <span class="topbar-subtitle">preset gallery</span>
+    </div>
+  </header>
+
+  <main class="gallery-container">
+    <header class="gallery-header">
+      <div class="gallery-title-wrap">
+        <h1 class="gallery-title">visual presets</h1>
+      </div>
+      <div class="gallery-actions">
+        <label class="btn btn-secondary btn-sm" style="cursor: pointer;">
+          import preset / .zip
+          <input type="file" id="galleryImportInput" accept=".json,.reel.json,.zip" hidden />
+        </label>
+        <div class="gallery-tabs">
+          <button type="button" class="gallery-tab-btn active" data-filter="templates">official templates</button>
+          <button type="button" class="gallery-tab-btn" data-filter="saved">saved</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="gallery-grid" id="galleryGrid">
+      <!-- populated dynamically -->
+    </div>
+  </main>
+
+  <!-- edit preset name / description modal -->
+  <div class="modal-backdrop" id="presetMetaModal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="presetMetaModalTitle">
+      <div class="modal-header">
+        <h3 id="presetMetaModalTitle">edit preset details</h3>
+        <button type="button" class="modal-close-x" id="closePresetMetaModalBtn" aria-label="close" title="close [esc]">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="meta-modal-field">
+          <label for="presetMetaNameInput">preset name</label>
+          <input type="text" id="presetMetaNameInput" maxlength="80" placeholder="my custom visual" />
+        </div>
+        <div class="meta-modal-field">
+          <label for="presetMetaDescInput">description</label>
+          <textarea id="presetMetaDescInput" rows="3" maxlength="240" placeholder="describe the mood, shader style, or audio reaction..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary btn-sm" id="cancelPresetMetaBtn">cancel</button>
+          <button type="button" class="btn btn-primary btn-sm" id="savePresetMetaBtn">save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/engine/loopUtils.js"></script>
+  <script src="/js/engine/audioSignals.js"></script>
+  <script src="/js/engine/motionKit.js"></script>
+  <script src="/js/engine/reelEngine.js"></script>
+  <script src="/js/presets/starterPresets.js"></script>
+  <script src="/js/services/projectBundleService.js"></script>
+  <script src="/js/services/storageAdapter.js"></script>
+  <footer style="max-width:1280px;margin:32px auto 0;padding:18px 24px;border-top:1px solid var(--border,#d8e6db);display:flex;gap:18px;flex-wrap:wrap;font-size:12px;opacity:.7;">
+    <a href="/impressum" style="color:inherit;">Impressum</a>
+    <a href="/privacy" style="color:inherit;">Privacy</a>
+    <a href="/terms" style="color:inherit;">Terms</a>
+  </footer>
+  <script src="/js/services/presetService.js"></script>
+  <script src="/js/templates/templateRegistry.js"></script>
+  <script src="/js/templates/constellationsTemplate.js"></script>
+  <script src="/js/gallery.js"></script>
+</body>
+
+</html>

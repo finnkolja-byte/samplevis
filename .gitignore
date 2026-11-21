@@ -1,0 +1,55 @@
+# local project context docs (never pushed to git)
+ARCHITECTURE.md
+architecture.md
+project.md
+project_preferences.md
+sideinfo.md
+forsaaslater.md
+r2-media-plan.md
+.geminiignore
+.gemini/
+/helperscripts/
+.codegraph/
+.agents/
+.agent/
+.claude/
+
+# Dependencies
+node_modules/
+dist/
+.wrangler/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
+# Local media uploads & exports
+data/uploads/*
+!data/uploads/.gitkeep
+data/exports/*
+!data/exports/.gitkeep
+
+# User custom presets
+data/presets/custom/*
+!data/presets/custom/.gitkeep
+
+# Local binary anime clip cache (heavy binaries fetched on demand)
+data/anime-clips/*
+!data/anime-clips/.gitkeep
+public/anime-clips/*
+public/presets/*
+
+# System & editor metadata
+.DS_Store
+Thumbs.db
+*.log
+
+# Private local notes & keys
+not for ai - stuff/
+
+# Machine-local sync config
+.sync.json

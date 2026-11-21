@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-sky="morning">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>samplevis · brand assets &amp; scenic banners</title>
+  <link rel="stylesheet" href="/fonts/fonts.css?v=fonts1" />
+  <style>
+    :root {
+      color-scheme: light;
+
+      --canvas: #f2f7f4;
+      --canvas-wash: #e5f1ea;
+      --surface: #ffffff;
+      --surface-glass: rgb(255 255 255 / 0.56);
+      --surface-raised: rgb(255 255 255 / 0.78);
+      --fill-subtle: rgb(235 243 237 / 0.65);
+      --fill-sage: #b9d1bb;
+      --sky-hint: #d8ecf8;
+
+      --sage: #83ca90;
+      --spruce: #5e8a7d;
+      --mist: #a5ccaf;
+      --accent: var(--spruce);
+      --accent-ink: #3e6b5e;
+      --accent-soft: rgb(131 202 144 / 0.18);
+
+      --ink-rgb: 22 33 78;
+      --ink-loud: rgb(var(--ink-rgb) / 0.92);
+      --ink: rgb(var(--ink-rgb) / 0.76);
+      --ink-muted: rgb(var(--ink-rgb) / 0.62);
+
+      --line: rgb(255 255 255 / 0.68);
+      --line-strong: rgb(216 230 219 / 0.85);
+      --line-hover: rgb(94 138 125 / 0.48);
+      --shade-rgb: 20 44 38;
+
+      --shadow-raised:
+        inset 0 1px 1px rgb(255 255 255 / 0.95),
+        inset 0 -1px 1px rgb(255 255 255 / 0.3),
+        0 12px 28px -6px rgb(var(--shade-rgb) / 0.06),
+        0 4px 10px -2px rgb(var(--shade-rgb) / 0.03),
+        0 0 0 1px rgb(255 255 255 / 0.65);
+
+      --shadow-float:
+        inset 0 1px 1.5px rgb(255 255 255 / 0.9),
+        0 24px 48px -12px rgb(var(--shade-rgb) / 0.12),
+        0 8px 16px -4px rgb(var(--shade-rgb) / 0.06),
+        0 0 0 1px rgb(255 255 255 / 0.65);
+
+      --glass-blur: blur(24px) saturate(180%);
+      --radius-xs: 4px;
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+      --radius-2xl: 20px;
+
+      --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      --font-brand: 'Plus Jakarta Sans', var(--font-sans);
+      --font-serif: 'Cormorant Garamond', ui-serif, Georgia, serif;
+    }
+
+    [data-theme='dark'] {
+      color-scheme: dark;
+
+      --canvas: #121829;
+      --canvas-wash: #16214e;
+      --surface: #1e2c51;
+      --surface-glass: rgb(22 33 78 / 0.64);
+      --surface-raised: rgb(30 44 81 / 0.9);
+      --fill-subtle: rgb(18 24 41 / 0.72);
+      --fill-sage: #294167;
+      --sky-hint: #1e2c51;
+
+      --accent: #83ca90;
+      --accent-ink: #83ca90;
+      --accent-soft: rgb(131 202 144 / 0.14);
+
+      --ink-rgb: 240 247 242;
+      --ink-loud: rgb(var(--ink-rgb) / 0.94);
+      --ink: rgb(var(--ink-rgb) / 0.78);
+      --ink-muted: rgb(var(--ink-rgb) / 0.64);
+
+      --line: #294167;
+      --line-strong: #294167;
+      --line-hover: rgb(131 202 144 / 0.45);
+      --shade-rgb: 0 0 0;
+
+      --shadow-raised:
+        inset 0 1px 0 rgb(255 255 255 / 0.08),
+        0 12px 28px -6px rgb(0 0 0 / 0.34),
+        0 0 0 1px #294167;
+
+      --shadow-float:
+        inset 0 1px 0 rgb(255 255 255 / 0.1),
+        0 24px 48px -12px rgb(0 0 0 / 0.5),
+        0 0 0 1px #294167;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100dvh;
+      background-color: var(--canvas);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .ambient-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.7;
+    }
+
+    .ambient-orb-1 {
+      width: 560px;
+      height: 560px;
+      background: radial-gradient(circle, rgb(131 202 144 / 0.38), transparent 70%);
+      top: -140px;
+      left: 6%;
+    }
+
+    .ambient-orb-2 {
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgb(201 228 245 / 0.6), transparent 70%);
+      bottom: -180px;
+      right: 10%;
+    }
+
+    [data-theme='dark'] .ambient-orb-2 {
+      background: radial-gradient(circle, rgb(41 65 103 / 0.55), transparent 70%);
+    }
+
+    :where(a:any-link, button):focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* topbar */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 16px;
+      min-height: 48px;
+      padding: 8px max(20px, env(safe-area-inset-right, 0px)) 8px max(20px, env(safe-area-inset-left, 0px));
+      background: var(--surface-glass);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border-bottom: 1px solid var(--line);
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    .topbar-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .brand-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--ink-loud);
+      text-decoration: none;
+      font-family: var(--font-brand);
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: -0.02em;
+    }
+
+    .tag-square {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 6px;
+      border-radius: var(--radius-xs);
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-block-size: 28px;
+      min-inline-size: 28px;
+      padding: 5px 10px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--line-strong);
+      background: var(--surface-raised);
+      color: var(--ink-loud);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: border-color 0.16s ease, background-color 0.16s ease;
+    }
+
+    .btn:hover {
+      border-color: var(--line-hover);
+      background: var(--surface);
+    }
+
+    .btn[aria-pressed='true'],
+    .btn-accent {
+      background: var(--spruce);
+      border-color: var(--spruce);
+      color: #ffffff;
+    }
+
+    .btn-accent:hover {
+      background: var(--accent-ink);
+      border-color: var(--accent-ink);
+    }
+
+    /* main layout */
+    .page-shell {
+      position: relative;
+      z-index: 1;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px 20px 64px;
+      display: grid;
+      gap: 36px;
+    }
+
+    .page-intro {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-family: var(--font-brand);
+      font-size: clamp(1.35rem, 1.1rem + 1.1vw, 1.9rem);
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      color: var(--ink-loud);
+    }
+
+    .subtitle {
+      margin: 0;
+      font-size: 13px;
+      color: var(--ink-muted);
+    }
+
+    .section-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--ink-loud);
+      text-transform: lowercase;
+    }
+
+    .section-meta {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--ink-muted);
+    }
+
+    /* logo cards */
+    .asset-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .asset-card {
+      background: var(--surface-glass);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-raised);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .asset-stage {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 152px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--line-strong);
+      background:
+        radial-gradient(circle at 20% 20%, rgb(131 202 144 / 0.14), transparent 60%),
+        var(--surface);
+      padding: 20px;
+      overflow: hidden;
+    }
+
+    .asset-stage--dark {
+      background:
+        radial-gradient(circle at 80% 20%, rgb(131 202 144 / 0.18), transparent 55%),
+        #121829;
+      border-color: #294167;
+      color: #f0f7f2;
+    }
+
+    .asset-stage--glass {
+      background:
+        linear-gradient(135deg, #c9e4f5 0%, #e5f1ea 55%, #b9d1bb 100%);
+    }
+
+    .glass-app-tile {
+      width: 96px;
+      height: 96px;
+      border-radius: 22px;
+      display: grid;
+      place-items: center;
+      background: rgb(255 255 255 / 0.62);
+      backdrop-filter: blur(18px) saturate(180%);
+      -webkit-backdrop-filter: blur(18px) saturate(180%);
+      border: 1px solid rgb(255 255 255 / 0.85);
+      box-shadow:
+        inset 0 1px 1.5px rgb(255 255 255 / 0.95),
+        0 18px 34px -8px rgb(20 44 38 / 0.22);
+    }
+
+    .asset-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .asset-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--ink-muted);
+    }
+
+    .asset-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .lockup {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .lockup-wordmark {
+      font-family: var(--font-brand);
+      font-weight: 600;
+      font-size: 26px;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      color: var(--ink-loud);
+    }
+
+    .asset-stage--dark .lockup-wordmark {
+      color: #f0f7f2;
+    }
+
+    .lockup-sub {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--ink-muted);
+      letter-spacing: 0.04em;
+      margin-top: 4px;
+    }
+
+    .asset-stage--dark .lockup-sub {
+      color: #9daea8;
+    }
+
+    /* ============================================================
+       anime scenic banners
+       ============================================================ */
+    .banner-stack {
+      display: grid;
+      gap: 20px;
+    }
+
+    .banner-card {
+      background: var(--surface-glass);
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-2xl);
+      box-shadow: var(--shadow-float);
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      container-type: inline-size;
+    }
+
+    .anime-banner {
+      position: relative;
+      width: 100%;
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      border: 1px solid rgb(255 255 255 / 0.58);
+      isolation: isolate;
+      transition: background 0.35s ease;
+    }
+
+    /* sky mood 1: meadow morning (default) */
+    [data-sky='morning'] .anime-banner {
+      background:
+        radial-gradient(circle at 78% 22%, rgb(255 250 228 / 0.95) 0%, rgb(255 250 228 / 0.35) 16%, transparent 44%),
+        linear-gradient(180deg, #4376a3 0%, #6ea4ca 28%, #a6d0e7 54%, #d8ecf8 76%, #eaf5ee 94%, #f2f7f4 100%);
+    }
+
+    /* sky mood 2: golden yuunagi (pastel sunset + spruce) */
+    [data-sky='yuunagi'] .anime-banner {
+      background:
+        radial-gradient(circle at 75% 34%, rgb(255 241 214 / 0.95) 0%, rgb(248 197 166 / 0.42) 22%, transparent 50%),
+        linear-gradient(180deg, #3c5478 0%, #6e7b99 28%, #b99aa3 54%, #e9c5b1 78%, #f5e2cc 94%, #f2f7f4 100%);
+    }
+
+    /* sky mood 3: twilight pine (starry night) */
+    [data-sky='twilight'] .anime-banner {
+      border-color: rgb(131 202 144 / 0.28);
+      background:
+        radial-gradient(circle at 78% 22%, rgb(165 204 175 / 0.24) 0%, transparent 38%),
+        linear-gradient(180deg, #0b1020 0%, #111930 34%, #182848 64%, #203756 84%, #1b3142 100%);
+    }
+
+    .anime-banner--hero {
+      aspect-ratio: 16 / 9;
+      min-height: 280px;
+    }
+
+    .anime-banner--wide {
+      aspect-ratio: 32 / 9;
+      min-height: 200px;
+    }
+
+    .anime-banner--reel {
+      aspect-ratio: 9 / 16;
+      max-width: 340px;
+      margin-inline: auto;
+    }
+
+    .anime-scene-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* twilight-only elements */
+    .night-only { opacity: 0; transition: opacity 0.35s ease; }
+    [data-sky='twilight'] .night-only { opacity: 1; }
+    .day-only { opacity: 1; transition: opacity 0.35s ease; }
+    [data-sky='twilight'] .day-only { opacity: 0.18; }
+
+    /* subtle anime sunbeam + film grain */
+    .anime-sunbeam {
+      position: absolute;
+      inset: -25%;
+      z-index: 2;
+      pointer-events: none;
+      background:
+        conic-gradient(
+          from 215deg at 76% 24%,
+          transparent 0deg,
+          rgb(255 255 255 / 0.16) 14deg,
+          transparent 28deg,
+          rgb(255 248 225 / 0.12) 46deg,
+          transparent 66deg
+        );
+      mix-blend-mode: screen;
+    }
+
+    [data-sky='twilight'] .anime-sunbeam {
+      background: radial-gradient(circle at 78% 22%, rgb(131 202 144 / 0.18), transparent 45%);
+    }
+
+    .anime-grain {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+      opacity: 0.045;
+      background-image: radial-gradient(rgb(22 33 78) 0.75px, transparent 0.75px);
+      background-size: 3px 3px;
+    }
+
+    .anime-motes {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+      background-image:
+        radial-gradient(2px 2px at 14% 30%, rgb(255 255 255 / 0.85), transparent),
+        radial-gradient(1.5px 1.5px at 26% 62%, rgb(255 255 255 / 0.7), transparent),
+        radial-gradient(2.5px 2.5px at 42% 22%, rgb(255 255 255 / 0.78), transparent),
+        radial-gradient(1.5px 1.5px at 60% 46%, rgb(255 255 255 / 0.68), transparent),
+        radial-gradient(2px 2px at 84% 36%, rgb(255 255 255 / 0.82), transparent),
+        radial-gradient(2px 2px at 72% 70%, rgb(131 202 144 / 0.8), transparent);
+      animation: mote-drift 18s linear infinite;
+    }
+
+    @keyframes mote-drift {
+      0% { transform: translateY(0) translateX(0); }
+      50% { transform: translateY(-7px) translateX(5px); }
+      100% { transform: translateY(0) translateX(0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .anime-motes { animation: none; }
+    }
+
+    /* frosted glass foreground inside banners */
+    .banner-overlay {
+      position: relative;
+      z-index: 4;
+      height: 100%;
+      padding: clamp(16px, 3cqi, 34px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .banner-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .banner-glass-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: var(--radius-md);
+      background: rgb(255 255 255 / 0.56);
+      backdrop-filter: blur(18px) saturate(160%);
+      -webkit-backdrop-filter: blur(18px) saturate(160%);
+      border: 1px solid rgb(255 255 255 / 0.74);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: rgb(22 33 78 / 0.9);
+      box-shadow: 0 4px 14px rgb(20 44 38 / 0.08);
+    }
+
+    [data-sky='twilight'] .banner-glass-chip {
+      background: rgb(18 24 41 / 0.64);
+      border-color: rgb(131 202 144 / 0.32);
+      color: #f0f7f2;
+    }
+
+    .banner-hero-panel {
+      max-width: 520px;
+      padding: clamp(14px, 2.4cqi, 22px);
+      border-radius: var(--radius-xl);
+      background: rgb(255 255 255 / 0.62);
+      backdrop-filter: blur(22px) saturate(180%);
+      -webkit-backdrop-filter: blur(22px) saturate(180%);
+      border: 1px solid rgb(255 255 255 / 0.84);
+      box-shadow:
+        inset 0 1px 1px rgb(255 255 255 / 0.95),
+        0 18px 36px -10px rgb(20 44 38 / 0.16);
+      color: rgb(22 33 78 / 0.92);
+    }
+
+    [data-sky='twilight'] .banner-hero-panel {
+      background: rgb(18 24 41 / 0.7);
+      border-color: rgb(41 65 103 / 0.95);
+      box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 0.08),
+        0 18px 36px -10px rgb(0 0 0 / 0.45);
+      color: #f0f7f2;
+    }
+
+    .banner-title {
+      margin: 8px 0 4px;
+      font-family: var(--font-brand);
+      font-size: clamp(1.25rem, 1rem + 1.75cqi, 2.15rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+    }
+
+    .banner-copy {
+      margin: 0;
+      font-size: clamp(0.78rem, 0.72rem + 0.32cqi, 0.92rem);
+      line-height: 1.45;
+      opacity: 0.84;
+    }
+
+    .mini-wave {
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 2.5px;
+      height: 14px;
+    }
+
+    .mini-wave span {
+      width: 2.5px;
+      border-radius: 1px;
+      background: var(--spruce);
+    }
+
+    [data-sky='twilight'] .mini-wave span {
+      background: var(--sage);
+    }
+
+    .mini-wave span:nth-child(1) { height: 45%; }
+    .mini-wave span:nth-child(2) { height: 90%; }
+    .mini-wave span:nth-child(3) { height: 65%; }
+    .mini-wave span:nth-child(4) { height: 100%; }
+    .mini-wave span:nth-child(5) { height: 55%; }
+    .mini-wave span:nth-child(6) { height: 75%; }
+
+    .banner-wide-row {
+      height: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .banner-wide-meta {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 8px 12px;
+      border-radius: var(--radius-md);
+      background: rgb(255 255 255 / 0.58);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgb(255 255 255 / 0.78);
+      color: rgb(22 33 78 / 0.88);
+    }
+
+    [data-sky='twilight'] .banner-wide-meta {
+      background: rgb(18 24 41 / 0.68);
+      border-color: #294167;
+      color: #f0f7f2;
+    }
+
+    .two-col-banners {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      align-items: start;
+    }
+
+    /* screenshot / solo mode */
+    body.clean-mode .topbar,
+    body.clean-mode .page-intro,
+    body.clean-mode .section-head,
+    body.clean-mode .asset-foot,
+    body.clean-mode [data-hide-clean] {
+      display: none;
+    }
+
+    body.clean-mode .banner-card {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      padding: 0;
+    }
+
+    .clean-exit-btn {
+      display: none;
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 50;
+    }
+
+    body.clean-mode .clean-exit-btn {
+      display: inline-flex;
+    }
+
+    @container (max-width: 520px) {
+      .banner-hero-panel { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <!-- hidden reusable svg symbol sprite -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+    <!-- creative mark: rounded reel frame + harmonic sine ribbon + constellation spark -->
+    <symbol id="sv-mark" viewBox="0 0 64 64">
+      <defs>
+        <linearGradient id="sv-grad-meadow" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#83ca90" />
+          <stop offset="100%" stop-color="#4e7a6d" />
+        </linearGradient>
+        <linearGradient id="sv-grad-ribbon" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.7" />
+          <stop offset="50%" stop-color="#ffffff" stop-opacity="1" />
+          <stop offset="100%" stop-color="#d8ecf8" stop-opacity="0.95" />
+        </linearGradient>
+      </defs>
+      <rect x="6" y="6" width="52" height="52" rx="15" fill="url(#sv-grad-meadow)" />
+      <!-- subtle inner reel frame -->
+      <rect x="11" y="11" width="42" height="42" rx="11" fill="none" stroke="rgba(255,255,255,0.42)" stroke-width="1.2" />
+      <!-- stem / piano-roll bars -->
+      <rect x="17" y="34" width="3.5" height="9" rx="1.75" fill="#ffffff" opacity="0.55" />
+      <rect x="23.5" y="25" width="3.5" height="18" rx="1.75" fill="#ffffff" opacity="0.78" />
+      <rect x="30" y="20" width="3.5" height="24" rx="1.75" fill="#ffffff" />
+      <rect x="36.5" y="27" width="3.5" height="16" rx="1.75" fill="#ffffff" opacity="0.82" />
+      <rect x="43" y="32" width="3.5" height="10" rx="1.75" fill="#ffffff" opacity="0.6" />
+      <!-- flowing harmonic ribbon -->
+      <path d="M13 36 C20 22, 27 46, 34 29 C39 17, 45 34, 51 24" fill="none" stroke="url(#sv-grad-ribbon)" stroke-width="2.6" stroke-linecap="round" />
+      <!-- 4-point constellation star -->
+      <path d="M46 13 L47.4 17.1 L51.5 18.5 L47.4 19.9 L46 24 L44.6 19.9 L40.5 18.5 L44.6 17.1 Z" fill="#ffffff" />
+      <circle cx="21" cy="18" r="1.4" fill="#ffffff" opacity="0.75" />
+    </symbol>
+
+    <!-- monochrome mark (v1: original squircle) -->
+    <symbol id="sv-mark-mono" viewBox="0 0 64 64">
+      <rect x="7" y="7" width="50" height="50" rx="14" fill="none" stroke="currentColor" stroke-width="3.2" />
+      <rect x="17" y="34" width="3.5" height="9" rx="1.75" fill="currentColor" opacity="0.5" />
+      <rect x="23.5" y="25" width="3.5" height="18" rx="1.75" fill="currentColor" opacity="0.75" />
+      <rect x="30" y="20" width="3.5" height="24" rx="1.75" fill="currentColor" />
+      <rect x="36.5" y="27" width="3.5" height="16" rx="1.75" fill="currentColor" opacity="0.78" />
+      <rect x="43" y="32" width="3.5" height="10" rx="1.75" fill="currentColor" opacity="0.55" />
+      <path d="M13 36 C20 22, 27 46, 34 29 C39 17, 45 34, 51 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+      <path d="M46 13 L47.4 17.1 L51.5 18.5 L47.4 19.9 L46 24 L44.6 19.9 L40.5 18.5 L44.6 17.1 Z" fill="currentColor" />
+    </symbol>
+
+    <!-- v2: superellipse outline with meadow-to-spruce gradient & crisp wave -->
+    <symbol id="sv-iter-grad" viewBox="0 0 64 64">
+      <defs>
+        <linearGradient id="sv-iter-g1" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#83ca90" />
+          <stop offset="100%" stop-color="#4e7a6d" />
+        </linearGradient>
+      </defs>
+      <path d="M32 6.5 C50 6.5 57.5 14 57.5 32 C57.5 50 50 57.5 32 57.5 C14 57.5 6.5 50 6.5 32 C6.5 14 14 6.5 32 6.5 Z" fill="none" stroke="url(#sv-iter-g1)" stroke-width="3.6" />
+      <rect x="17" y="34" width="3.4" height="9" rx="1.7" fill="#83ca90" opacity="0.48" />
+      <rect x="23.5" y="25" width="3.4" height="18" rx="1.7" fill="#6fb989" opacity="0.72" />
+      <rect x="30" y="20" width="3.6" height="24" rx="1.8" fill="url(#sv-iter-g1)" />
+      <rect x="36.5" y="27" width="3.4" height="16" rx="1.7" fill="#5e8a7d" opacity="0.78" />
+      <rect x="43" y="32" width="3.4" height="10" rx="1.7" fill="#5e8a7d" opacity="0.52" />
+      <path d="M13 35.5 C20 21.5, 27 45.5, 34 28.5 C39 16.5, 45 33.5, 50.5 23.5" fill="none" stroke="url(#sv-iter-g1)" stroke-width="2.7" stroke-linecap="round" />
+      <path d="M46 13 L47.5 17.2 L51.7 18.7 L47.5 20.2 L46 24.4 L44.5 20.2 L40.3 18.7 L44.5 17.2 Z" fill="#83ca90" />
+    </symbol>
+
+    <!-- v3: dual-tone twilight ink + pastel meadow accent -->
+    <symbol id="sv-iter-dual" viewBox="0 0 64 64">
+      <path d="M32 6.5 C50 6.5 57.5 14 57.5 32 C57.5 50 50 57.5 32 57.5 C14 57.5 6.5 50 6.5 32 C6.5 14 14 6.5 32 6.5 Z" fill="none" stroke="#16214e" stroke-width="3.4" />
+      <rect x="17" y="34" width="3.4" height="9" rx="1.7" fill="#16214e" opacity="0.22" />
+      <rect x="23.5" y="25" width="3.4" height="18" rx="1.7" fill="#16214e" opacity="0.45" />
+      <rect x="30" y="20" width="3.6" height="24" rx="1.8" fill="#16214e" opacity="0.88" />
+      <rect x="36.5" y="27" width="3.4" height="16" rx="1.7" fill="#16214e" opacity="0.45" />
+      <rect x="43" y="32" width="3.4" height="10" rx="1.7" fill="#16214e" opacity="0.22" />
+      <path d="M13 35.5 C20 21.5, 27 45.5, 34 28.5 C39 16.5, 45 33.5, 50.5 23.5" fill="none" stroke="#5e8a7d" stroke-width="2.8" stroke-linecap="round" />
+      <path d="M46 13 L47.5 17.2 L51.7 18.7 L47.5 20.2 L46 24.4 L44.5 20.2 L40.3 18.7 L44.5 17.2 Z" fill="#83ca90" />
+    </symbol>
+
+    <!-- v4: soft tinted squircle badge (great for favicon / macos dock) -->
+    <symbol id="sv-iter-tint" viewBox="0 0 64 64">
+      <defs>
+        <linearGradient id="sv-iter-bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f2f7f4" />
+          <stop offset="100%" stop-color="#dceee2" />
+        </linearGradient>
+      </defs>
+      <path d="M32 6.5 C50 6.5 57.5 14 57.5 32 C57.5 50 50 57.5 32 57.5 C14 57.5 6.5 50 6.5 32 C6.5 14 14 6.5 32 6.5 Z" fill="url(#sv-iter-bg)" stroke="#83ca90" stroke-width="2.8" />
+      <rect x="17" y="34" width="3.4" height="9" rx="1.7" fill="#5e8a7d" opacity="0.32" />
+      <rect x="23.5" y="25" width="3.4" height="18" rx="1.7" fill="#5e8a7d" opacity="0.58" />
+      <rect x="30" y="20" width="3.6" height="24" rx="1.8" fill="#5e8a7d" />
+      <rect x="36.5" y="27" width="3.4" height="16" rx="1.7" fill="#5e8a7d" opacity="0.6" />
+      <rect x="43" y="32" width="3.4" height="10" rx="1.7" fill="#5e8a7d" opacity="0.34" />
+      <path d="M13 35.5 C20 21.5, 27 45.5, 34 28.5 C39 16.5, 45 33.5, 50.5 23.5" fill="none" stroke="#83ca90" stroke-width="2.8" stroke-linecap="round" />
+      <path d="M46 13 L47.5 17.2 L51.7 18.7 L47.5 20.2 L46 24.4 L44.5 20.2 L40.3 18.7 L44.5 17.2 Z" fill="#5e8a7d" />
+    </symbol>
+
+    <!-- v5: compact 3-bar + wave + star (razor-sharp at 16px/32px favicon) -->
+    <symbol id="sv-iter-mini" viewBox="0 0 64 64">
+      <path d="M32 6.5 C50 6.5 57.5 14 57.5 32 C57.5 50 50 57.5 32 57.5 C14 57.5 6.5 50 6.5 32 C6.5 14 14 6.5 32 6.5 Z" fill="none" stroke="currentColor" stroke-width="4" />
+      <rect x="20" y="26" width="4.5" height="17" rx="2.25" fill="currentColor" opacity="0.48" />
+      <rect x="29.5" y="18" width="4.5" height="26" rx="2.25" fill="currentColor" opacity="0.72" />
+      <rect x="39" y="28" width="4.5" height="14" rx="2.25" fill="currentColor" opacity="0.48" />
+      <path d="M14 35 C21 21, 28 45, 35 28 C40 16, 45 32, 50 23" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" />
+      <path d="M46 12.5 L47.6 17 L52 18.5 L47.6 20 L46 24.5 L44.4 20 L40 18.5 L44.4 17 Z" fill="currentColor" />
+    </symbol>
+  </svg>
+
+  <div class="ambient-orb ambient-orb-1" aria-hidden="true"></div>
+  <div class="ambient-orb ambient-orb-2" aria-hidden="true"></div>
+
+  <button type="button" class="btn clean-exit-btn" id="exitCleanBtn">exit clean view</button>
+
+  <header class="topbar">
+    <div class="topbar-group">
+      <a href="/gallery.html" class="brand-link">
+        <svg width="22" height="22" aria-hidden="true"><use href="#sv-mark" /></svg>
+        <span>samplevis</span>
+      </a>
+      <span class="tag-square">brand kit</span>
+    </div>
+    <div class="topbar-group" role="group" aria-label="sky mood and theme">
+      <button type="button" class="btn" data-sky-btn="morning" aria-pressed="true">morning</button>
+      <button type="button" class="btn" data-sky-btn="yuunagi" aria-pressed="false">yuunagi</button>
+      <button type="button" class="btn" data-sky-btn="twilight" aria-pressed="false">twilight</button>
+      <button type="button" class="btn" id="cleanViewBtn" title="hide ui chrome for clean screenshots">clean view</button>
+      <a href="/index.html" class="btn">← studio</a>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <div class="page-intro">
+      <div>
+        <h1>samplevis brand assets</h1>
+        <p class="subtitle">harmonic ribbon + constellation marks and layered anime scenic banners in html, css, and vector svg.</p>
+      </div>
+    </div>
+
+    <!-- 1. squircle logo iterations -->
+    <section aria-labelledby="sec-iterations" data-hide-clean>
+      <div class="section-head">
+        <h2 id="sec-iterations">01 · squircle mark iterations</h2>
+        <span class="section-meta">refined superellipse curves · exportable svg &amp; 512×512 png</span>
+      </div>
+
+      <div class="asset-grid">
+        <article class="asset-card">
+          <div class="asset-stage">
+            <svg width="88" height="88" viewBox="0 0 64 64" style="color: #83ca90;" role="img" aria-label="v1 meadow outline mark">
+              <title>samplevis v1 meadow outline</title>
+              <use href="#sv-mark-mono" />
+            </svg>
+          </div>
+          <div class="asset-foot">
+            <span class="asset-label">v1 · meadow outline</span>
+            <div class="asset-actions">
+              <button type="button" class="btn" data-download-svg="mono">svg</button>
+              <button type="button" class="btn btn-accent" data-download-png="mono">png</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="asset-card">
+          <div class="asset-stage">
+            <svg width="88" height="88" viewBox="0 0 64 64" role="img" aria-label="v2 superellipse gradient mark">
+              <title>samplevis v2 superellipse gradient</title>
+              <use href="#sv-iter-grad" />
+            </svg>
+          </div>
+          <div class="asset-foot">
+            <span class="asset-label">v2 · superellipse gradient</span>
+            <div class="asset-actions">
+              <button type="button" class="btn" data-download-svg="iter-grad">svg</button>
+              <button type="button" class="btn btn-accent" data-download-png="iter-grad">png</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="asset-card">
+          <div class="asset-stage">
+            <svg width="88" height="88" viewBox="0 0 64 64" role="img" aria-label="v3 dual-tone navy and spruce mark">
+              <title>samplevis v3 dual-tone ink</title>
+              <use href="#sv-iter-dual" />
+            </svg>
+          </div>
+          <div class="asset-foot">
+            <span class="asset-label">v3 · dual-tone ink &amp; sage</span>
+            <div class="asset-actions">
+              <button type="button" class="btn" data-download-svg="iter-dual">svg</button>
+              <button type="button" class="btn btn-accent" data-download-png="iter-dual">png</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="asset-card">
+          <div class="asset-stage asset-stage--glass">
+            <svg width="88" height="88" viewBox="0 0 64 64" role="img" aria-label="v4 soft tinted squircle badge">
+              <title>samplevis v4 tinted badge</title>
+              <use href="#sv-iter-tint" />
+            </svg>
+          </div>
+          <div class="asset-foot">
+            <span class="asset-label">v4 · soft tinted badge</span>
+            <div class="asset-actions">
+              <button type="button" class="btn" data-download-svg="iter-tint">svg</button>
+              <button type="button" class="btn btn-accent" data-download-png="iter-tint">png</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="asset-card">
+          <div class="asset-stage">
+            <div style="display: flex; align-items: center; gap: 20px;">
+              <svg width="64" height="64" viewBox="0 0 64 64" style="color: #5e8a7d;" role="img" aria-label="v5 compact favicon 64px">
+                <title>samplevis v5 compact favicon</title>
+                <use href="#sv-iter-mini" />
+              </svg>
+              <svg width="28" height="28" viewBox="0 0 64 64" style="color: #5e8a7d;" aria-hidden="true">
+                <use href="#sv-iter-mini" />
+              </svg>
+              <svg width="16" height="16" viewBox="0 0 64 64" style="color: #5e8a7d;" aria-hidden="true">
+                <use href="#sv-iter-mini" />
+              </svg>
+            </div>
+          </div>
+          <div class="asset-foot">
+            <span class="asset-label">v5 · compact favicon (64/28/16px)</span>
+            <div class="asset-actions">
+              <button type="button" class="btn" data-download-svg="iter-mini">svg</button>
+              <button type="button" class="btn btn-accent" data-download-png="iter-mini">png</button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 2. filled app icons & wordmark lockups -->
+    <section aria-labelledby="sec-logos" data-hide-clean>
+      <div class="section-head">
+        <h2 id="sec-logos">02 · filled icons &amp; wordmark lockups</h2>
+        <span class="section-meta">exportable vector svg &amp; 512×512 png</span>
+      </div>
+
+      <div class="asset-grid">
+        <article class="asset-card">
+          <div class="asset-stage">
+            <svg width="84" height="84" viewBox="0 0 64 64" role="img" aria-label="samplevis primary app icon">
+              <title>samplevis app icon</title>
+              <use href="#sv-mark" />
+            </svg>
+          </div>
+          <div class="asset-foot">
+            <span class="asset-label">primary app icon</span>
+            <div class="asset-actions">
+              <button type="button" class="btn" data-download-svg="primary">svg</button>
+              <button type="button" class="btn btn-accent" data-download-png="primary">png</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="asset-card">
+          <div class="asset-stage asset-stage--glass">
+            <div class="glass-app-tile">
+              <svg width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="samplevis frosted glass icon">
+                <title>samplevis frosted glass icon</title>
+                <use href="#sv-mark" />
+              </svg>
+            </div>
+          </div>
+          <div class="asset-foot">
+            <span class="asset-label">frosted glass dock tile</span>
+            <span class="section-meta">css backdrop</span>
+          </div>
+        </article>
+
+        <article class="asset-card">
+          <div class="asset-stage">
+            <div class="lockup">
+              <svg width="46" height="46" aria-hidden="true"><use href="#sv-mark" /></svg>
+              <div>
+                <div class="lockup-wordmark">samplevis</div>
+                <div class="lockup-sub">audio &amp; midi reel engine</div>
+              </div>
+            </div>
+          </div>
+          <div class="asset-foot">
+            <span class="asset-label">wordmark lockup (light)</span>
+            <div class="asset-actions">
+              <button type="button" class="btn" data-download-svg="lockup-light">svg</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="asset-card">
+          <div class="asset-stage asset-stage--dark">
+            <div class="lockup">
+              <svg width="46" height="46" style="color: #83ca90;" aria-hidden="true"><use href="#sv-mark-mono" /></svg>
+              <div>
+                <div class="lockup-wordmark">samplevis</div>
+                <div class="lockup-sub">twilight pine · dark</div>
+              </div>
+            </div>
+          </div>
+          <div class="asset-foot">
+            <span class="asset-label">monochrome lockup (dark)</span>
+            <div class="asset-actions">
+              <button type="button" class="btn" data-download-svg="mono">svg</button>
+              <button type="button" class="btn btn-accent" data-download-png="mono">png</button>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 3. anime scenic banners -->
+    <section aria-labelledby="sec-banners">
+      <div class="section-head">
+        <h2 id="sec-banners">03 · anime scenic banners</h2>
+        <span class="section-meta">switch morning / yuunagi / twilight in topbar</span>
+      </div>
+
+      <div class="banner-stack">
+        <!-- 16:9 hero banner: yuunagi overpass + commuter train + lakeside reflection -->
+        <article class="banner-card">
+          <div class="anime-banner anime-banner--hero">
+            <svg class="anime-scene-svg" viewBox="0 0 1200 675" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <defs>
+                <linearGradient id="cloudHighlight" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#ffffff" stop-opacity="0.98" />
+                  <stop offset="55%" stop-color="#e5f1ea" stop-opacity="0.88" />
+                  <stop offset="100%" stop-color="#8eb5cc" stop-opacity="0.65" />
+                </linearGradient>
+                <linearGradient id="lakeWater" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#96c4d8" stop-opacity="0.55" />
+                  <stop offset="100%" stop-color="#5e8a7d" stop-opacity="0.72" />
+                </linearGradient>
+                <linearGradient id="hillNear" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#4e796d" />
+                  <stop offset="100%" stop-color="#1e3839" />
+                </linearGradient>
+              </defs>
+
+              <!-- twilight constellation + crescent moon -->
+              <g class="night-only">
+                <path d="M930 112 A36 36 0 1 0 976 158 A28 28 0 1 1 930 112 Z" fill="#f0f7f2" opacity="0.92" />
+                <g stroke="#83ca90" stroke-opacity="0.45" stroke-width="1" fill="none">
+                  <path d="M160,125 L235,92 L315,134 L390,98 L455,148" />
+                </g>
+                <g fill="#f0f7f2">
+                  <circle cx="160" cy="125" r="2.3" />
+                  <circle cx="235" cy="92" r="1.8" />
+                  <circle cx="315" cy="134" r="2.6" />
+                  <circle cx="390" cy="98" r="1.9" />
+                  <circle cx="455" cy="148" r="2.2" />
+                  <circle cx="620" cy="84" r="1.6" opacity="0.75" />
+                  <circle cx="710" cy="130" r="1.4" opacity="0.65" />
+                  <path d="M535 76 L537.5 83.5 L545 86 L537.5 88.5 L535 96 L532.5 88.5 L525 86 L532.5 83.5 Z" fill="#83ca90" />
+                </g>
+              </g>
+
+              <!-- towering summer cumulus clouds -->
+              <g class="day-only">
+                <path d="M560,460 C575,395 628,365 685,378 C705,310 778,272 848,298 C882,228 972,218 1025,274 C1082,262 1152,306 1164,370 C1200,378 1225,412 1225,460 Z" fill="url(#cloudHighlight)" />
+                <path d="M-20,475 C28,415 98,398 156,426 C192,374 268,374 312,418 C364,404 422,430 438,475 Z" fill="url(#cloudHighlight)" opacity="0.82" />
+              </g>
+
+              <!-- far misty mountain silhouettes -->
+              <path d="M0,492 L130,425 L280,462 L455,398 L630,452 L810,392 L980,442 L1115,408 L1200,440 L1200,535 L0,535 Z" fill="#6d98a6" opacity="0.52" />
+
+              <!-- lakeside reflection band -->
+              <rect x="0" y="510" width="1200" height="82" fill="url(#lakeWater)" />
+              <g stroke="#ffffff" stroke-opacity="0.32" stroke-width="1.5" stroke-linecap="round">
+                <line x1="780" y1="532" x2="940" y2="532" />
+                <line x1="820" y1="546" x2="910" y2="546" />
+                <line x1="210" y1="538" x2="330" y2="538" />
+                <line x1="480" y1="554" x2="570" y2="554" />
+              </g>
+
+              <!-- elevated railway bridge + commuter train -->
+              <g>
+                <!-- bridge deck & pillars -->
+                <rect x="0" y="502" width="1200" height="10" fill="#21353e" opacity="0.82" />
+                <rect x="0" y="497" width="1200" height="3" fill="#21353e" opacity="0.65" />
+                <rect x="190" y="512" width="14" height="70" fill="#1b2d36" opacity="0.72" />
+                <rect x="470" y="512" width="14" height="70" fill="#1b2d36" opacity="0.72" />
+                <rect x="750" y="512" width="14" height="70" fill="#1b2d36" opacity="0.72" />
+                <rect x="1030" y="512" width="14" height="70" fill="#1b2d36" opacity="0.72" />
+
+                <!-- 3-car anime commuter train -->
+                <g transform="translate(650, 474)">
+                  <rect x="0" y="0" width="136" height="23" rx="3" fill="#edf4f1" stroke="#2c484e" stroke-width="1.2" />
+                  <rect x="142" y="0" width="136" height="23" rx="3" fill="#edf4f1" stroke="#2c484e" stroke-width="1.2" />
+                  <rect x="284" y="0" width="136" height="23" rx="4" fill="#edf4f1" stroke="#2c484e" stroke-width="1.2" />
+                  <!-- spruce green stripe -->
+                  <rect x="1" y="14" width="134" height="4" fill="#5e8a7d" />
+                  <rect x="143" y="14" width="134" height="4" fill="#5e8a7d" />
+                  <rect x="285" y="14" width="134" height="4" fill="#5e8a7d" />
+                  <!-- train windows (warm lit in twilight) -->
+                  <g fill="#6c8fa1">
+                    <rect x="12" y="5" width="18" height="7" rx="1" />
+                    <rect x="36" y="5" width="18" height="7" rx="1" />
+                    <rect x="72" y="5" width="18" height="7" rx="1" />
+                    <rect x="96" y="5" width="18" height="7" rx="1" />
+                    <rect x="154" y="5" width="18" height="7" rx="1" />
+                    <rect x="178" y="5" width="18" height="7" rx="1" />
+                    <rect x="214" y="5" width="18" height="7" rx="1" />
+                    <rect x="238" y="5" width="18" height="7" rx="1" />
+                    <rect x="296" y="5" width="18" height="7" rx="1" />
+                    <rect x="320" y="5" width="18" height="7" rx="1" />
+                    <rect x="356" y="5" width="18" height="7" rx="1" />
+                    <rect x="380" y="5" width="18" height="7" rx="1" />
+                  </g>
+                  <g class="night-only" fill="#ffe7a8">
+                    <rect x="12" y="5" width="18" height="7" rx="1" />
+                    <rect x="36" y="5" width="18" height="7" rx="1" />
+                    <rect x="72" y="5" width="18" height="7" rx="1" />
+                    <rect x="154" y="5" width="18" height="7" rx="1" />
+                    <rect x="214" y="5" width="18" height="7" rx="1" />
+                    <rect x="296" y="5" width="18" height="7" rx="1" />
+                    <rect x="356" y="5" width="18" height="7" rx="1" />
+                  </g>
+                </g>
+              </g>
+
+              <!-- foreground meadow slope & utility pole -->
+              <path d="M0,582 Q360,536 740,580 T1200,554 L1200,675 L0,675 Z" fill="url(#hillNear)" />
+              <g stroke="#1a2f36" stroke-opacity="0.65" fill="none">
+                <line x1="1045" y1="255" x2="1045" y2="610" stroke-width="5" />
+                <line x1="1012" y1="286" x2="1078" y2="286" stroke-width="3.5" />
+                <line x1="1018" y1="316" x2="1072" y2="316" stroke-width="3" />
+                <path d="M0,370 Q520,420 1016,286" stroke-width="1.35" />
+                <path d="M0,396 Q520,442 1074,286" stroke-width="1.15" />
+                <path d="M1070,316 Q1135,332 1200,326" stroke-width="1.25" />
+              </g>
+            </svg>
+
+            <div class="anime-sunbeam" aria-hidden="true"></div>
+            <div class="anime-grain" aria-hidden="true"></div>
+            <div class="anime-motes" aria-hidden="true"></div>
+
+            <div class="banner-overlay">
+              <div class="banner-top-row">
+                <div class="banner-glass-chip">
+                  <svg width="18" height="18" aria-hidden="true"><use href="#sv-mark" /></svg>
+                  <span>samplevis · 0.1.1</span>
+                </div>
+                <div class="banner-glass-chip">
+                  <div class="mini-wave" aria-hidden="true">
+                    <span></span><span></span><span></span><span></span><span></span><span></span>
+                  </div>
+                  <span>Bmaj7 · 128 bpm</span>
+                </div>
+              </div>
+
+              <div class="banner-hero-panel">
+                <span class="tag-square">audio &amp; midi reel engine</span>
+                <h3 class="banner-title">turn samples &amp; ableton stems into anime reels</h3>
+                <p class="banner-copy">client-side webgl shaders, harmonic chord cuts, and 60fps mp4 export — wrapped in calm frosted glass.</p>
+              </div>
+            </div>
+          </div>
+          <div class="asset-foot">
+            <span class="asset-label">hero / social banner (16:9 · yuunagi overpass)</span>
+            <span class="section-meta">html + css + svg</span>
+          </div>
+        </article>
+
+        <!-- 32:9 wide piano-roll horizon + 9:16 window frame -->
+        <div class="two-col-banners">
+          <!-- wide site / readme banner -->
+          <article class="banner-card">
+            <div class="anime-banner anime-banner--wide">
+              <svg class="anime-scene-svg" viewBox="0 0 1280 360" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <!-- clouds -->
+                <path d="M680,310 C710,235 790,205 860,224 C898,162 985,150 1048,194 C1105,176 1180,208 1202,265 C1242,270 1268,292 1280,320 L1280,360 L680,360 Z" fill="#ffffff" opacity="0.82" class="day-only" />
+                <!-- subtle scrolling midi piano-roll notes across horizon -->
+                <g fill="#83ca90" opacity="0.34">
+                  <rect x="420" y="130" width="76" height="8" rx="3" />
+                  <rect x="520" y="108" width="94" height="8" rx="3" />
+                  <rect x="640" y="146" width="62" height="8" rx="3" />
+                  <rect x="730" y="96" width="110" height="8" rx="3" />
+                  <rect x="865" y="122" width="84" height="8" rx="3" />
+                  <rect x="980" y="88" width="124" height="8" rx="3" />
+                </g>
+                <path d="M0,285 Q320,240 660,282 T1280,262 L1280,360 L0,360 Z" fill="#5e8a7d" opacity="0.78" />
+                <path d="M0,318 Q440,280 880,315 T1280,298 L1280,360 L0,360 Z" fill="#294846" opacity="0.92" />
+              </svg>
+              <div class="anime-motes" aria-hidden="true"></div>
+              <div class="banner-overlay">
+                <div class="banner-wide-row">
+                  <div class="lockup">
+                    <svg width="46" height="46" aria-hidden="true"><use href="#sv-mark" /></svg>
+                    <div>
+                      <div class="lockup-wordmark">samplevis</div>
+                      <div class="lockup-sub">client-side audio &amp; midi reel studio</div>
+                    </div>
+                  </div>
+                  <div class="banner-wide-meta">.wav · .als · .mid → 60fps mp4</div>
+                </div>
+              </div>
+            </div>
+            <div class="asset-foot">
+              <span class="asset-label">wide readme / site header (32:9 · piano roll horizon)</span>
+              <span class="section-meta">html + css</span>
+            </div>
+          </article>
+
+          <!-- 9:16 vertical reel cover: window frame looking out to summer clouds -->
+          <article class="banner-card">
+            <div class="anime-banner anime-banner--reel">
+              <svg class="anime-scene-svg" viewBox="0 0 540 960" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <!-- clouds -->
+                <path d="M90,560 C118,475 205,442 276,472 C320,392 422,382 476,442 C518,446 544,480 552,535 L552,640 L90,640 Z" fill="#ffffff" opacity="0.88" class="day-only" />
+                <!-- hills -->
+                <path d="M0,690 Q180,635 360,680 T540,665 L540,960 L0,960 Z" fill="#6b9f86" opacity="0.85" />
+                <path d="M0,780 Q240,735 540,775 L540,960 L0,960 Z" fill="#2c4e4a" />
+                <!-- subtle anime window mullion frame -->
+                <rect x="0" y="0" width="540" height="960" fill="none" stroke="rgb(22 33 78 / 0.22)" stroke-width="28" />
+                <line x1="270" y1="0" x2="270" y2="960" stroke="rgb(22 33 78 / 0.14)" stroke-width="6" />
+                <line x1="0" y1="540" x2="540" y2="540" stroke="rgb(22 33 78 / 0.14)" stroke-width="6" />
+              </svg>
+              <div class="anime-sunbeam" aria-hidden="true"></div>
+              <div class="anime-motes" aria-hidden="true"></div>
+              <div class="banner-overlay">
+                <div class="banner-top-row">
+                  <div class="banner-glass-chip">
+                    <svg width="16" height="16" aria-hidden="true"><use href="#sv-mark" /></svg>
+                    <span>samplevis</span>
+                  </div>
+                  <span class="tag-square">9:16</span>
+                </div>
+                <div class="banner-hero-panel">
+                  <span class="tag-square">Cmaj9 · chord cut</span>
+                  <h3 class="banner-title" style="font-size: 1.35rem;">daylight chord reels</h3>
+                  <p class="banner-copy">harmonic clip cuts synced to your stems.</p>
+                </div>
+              </div>
+            </div>
+            <div class="asset-foot">
+              <span class="asset-label">vertical reel card (9:16 · window frame)</span>
+              <span class="section-meta">html + css</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const html = document.documentElement;
+    const skyBtns = document.querySelectorAll('[data-sky-btn]');
+
+    function setSky(mood) {
+      html.dataset.sky = mood;
+      html.dataset.theme = mood === 'twilight' ? 'dark' : 'light';
+      skyBtns.forEach((b) => {
+        b.setAttribute('aria-pressed', String(b.dataset.skyBtn === mood));
+      });
+    }
+
+    skyBtns.forEach((btn) => {
+      btn.addEventListener('click', () => setSky(btn.dataset.skyBtn));
+    });
+
+    const cleanViewBtn = document.getElementById('cleanViewBtn');
+    const exitCleanBtn = document.getElementById('exitCleanBtn');
+    cleanViewBtn.addEventListener('click', () => document.body.classList.add('clean-mode'));
+    exitCleanBtn.addEventListener('click', () => document.body.classList.remove('clean-mode'));
+
+    function buildStandaloneSvg(kind) {
+      if (kind === 'primary') {
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#83ca90"/>
+      <stop offset="100%" stop-color="#4e7a6d"/>
+    </linearGradient>
+    <linearGradient id="r" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.7"/>
+      <stop offset="50%" stop-color="#fff" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#d8ecf8" stop-opacity="0.95"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="52" height="52" rx="15" fill="url(#g)"/>
+  <rect x="11" y="11" width="42" height="42" rx="11" fill="none" stroke="rgba(255,255,255,0.42)" stroke-width="1.2"/>
+  <rect x="17" y="34" width="3.5" height="9" rx="1.75" fill="#fff" opacity="0.55"/>
+  <rect x="23.5" y="25" width="3.5" height="18" rx="1.75" fill="#fff" opacity="0.78"/>
+  <rect x="30" y="20" width="3.5" height="24" rx="1.75" fill="#fff"/>
+  <rect x="36.5" y="27" width="3.5" height="16" rx="1.75" fill="#fff" opacity="0.82"/>
+  <rect x="43" y="32" width="3.5" height="10" rx="1.75" fill="#fff" opacity="0.6"/>
+  <path d="M13 36 C20 22, 27 46, 34 29 C39 17, 45 34, 51 24" fill="none" stroke="url(#r)" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M46 13 L47.4 17.1 L51.5 18.5 L47.4 19.9 L46 24 L44.6 19.9 L40.5 18.5 L44.6 17.1 Z" fill="#fff"/>
+  <circle cx="21" cy="18" r="1.4" fill="#fff" opacity="0.75"/>
+</svg>`;
+      }
+      if (kind === 'mono') {
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512" color="#83ca90">
+  <rect x="7" y="7" width="50" height="50" rx="14" fill="none" stroke="currentColor" stroke-width="3.2"/>
+  <rect x="17" y="34" width="3.5" height="9" rx="1.75" fill="currentColor" opacity="0.5"/>
+  <rect x="23.5" y="25" width="3.5" height="18" rx="1.75" fill="currentColor" opacity="0.75"/>
+  <rect x="30" y="20" width="3.5" height="24" rx="1.75" fill="currentColor"/>
+  <rect x="36.5" y="27" width="3.5" height="16" rx="1.75" fill="currentColor" opacity="0.78"/>
+  <rect x="43" y="32" width="3.5" height="10" rx="1.75" fill="currentColor" opacity="0.55"/>
+  <path d="M13 36 C20 22, 27 46, 34 29 C39 17, 45 34, 51 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M46 13 L47.4 17.1 L51.5 18.5 L47.4 19.9 L46 24 L44.6 19.9 L40.5 18.5 L44.6 17.1 Z" fill="currentColor"/>
+</svg>`;
+      }
+      if (kind === 'iter-grad') {
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#83ca90"/>
+      <stop offset="100%" stop-color="#4e7a6d"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 6.5 C50 6.5 57.5 14 57.5 32 C57.5 50 50 57.5 32 57.5 C14 57.5 6.5 50 6.5 32 C6.5 14 14 6.5 32 6.5 Z" fill="none" stroke="url(#g1)" stroke-width="3.6"/>
+  <rect x="17" y="34" width="3.4" height="9" rx="1.7" fill="#83ca90" opacity="0.48"/>
+  <rect x="23.5" y="25" width="3.4" height="18" rx="1.7" fill="#6fb989" opacity="0.72"/>
+  <rect x="30" y="20" width="3.6" height="24" rx="1.8" fill="url(#g1)"/>
+  <rect x="36.5" y="27" width="3.4" height="16" rx="1.7" fill="#5e8a7d" opacity="0.78"/>
+  <rect x="43" y="32" width="3.4" height="10" rx="1.7" fill="#5e8a7d" opacity="0.52"/>
+  <path d="M13 35.5 C20 21.5, 27 45.5, 34 28.5 C39 16.5, 45 33.5, 50.5 23.5" fill="none" stroke="url(#g1)" stroke-width="2.7" stroke-linecap="round"/>
+  <path d="M46 13 L47.5 17.2 L51.7 18.7 L47.5 20.2 L46 24.4 L44.5 20.2 L40.3 18.7 L44.5 17.2 Z" fill="#83ca90"/>
+</svg>`;
+      }
+      if (kind === 'iter-dual') {
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512">
+  <path d="M32 6.5 C50 6.5 57.5 14 57.5 32 C57.5 50 50 57.5 32 57.5 C14 57.5 6.5 50 6.5 32 C6.5 14 14 6.5 32 6.5 Z" fill="none" stroke="#16214e" stroke-width="3.4"/>
+  <rect x="17" y="34" width="3.4" height="9" rx="1.7" fill="#16214e" opacity="0.22"/>
+  <rect x="23.5" y="25" width="3.4" height="18" rx="1.7" fill="#16214e" opacity="0.45"/>
+  <rect x="30" y="20" width="3.6" height="24" rx="1.8" fill="#16214e" opacity="0.88"/>
+  <rect x="36.5" y="27" width="3.4" height="16" rx="1.7" fill="#16214e" opacity="0.45"/>
+  <rect x="43" y="32" width="3.4" height="10" rx="1.7" fill="#16214e" opacity="0.22"/>
+  <path d="M13 35.5 C20 21.5, 27 45.5, 34 28.5 C39 16.5, 45 33.5, 50.5 23.5" fill="none" stroke="#5e8a7d" stroke-width="2.8" stroke-linecap="round"/>
+  <path d="M46 13 L47.5 17.2 L51.7 18.7 L47.5 20.2 L46 24.4 L44.5 20.2 L40.3 18.7 L44.5 17.2 Z" fill="#83ca90"/>
+</svg>`;
+      }
+      if (kind === 'iter-tint') {
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f2f7f4"/>
+      <stop offset="100%" stop-color="#dceee2"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 6.5 C50 6.5 57.5 14 57.5 32 C57.5 50 50 57.5 32 57.5 C14 57.5 6.5 50 6.5 32 C6.5 14 14 6.5 32 6.5 Z" fill="url(#bg)" stroke="#83ca90" stroke-width="2.8"/>
+  <rect x="17" y="34" width="3.4" height="9" rx="1.7" fill="#5e8a7d" opacity="0.32"/>
+  <rect x="23.5" y="25" width="3.4" height="18" rx="1.7" fill="#5e8a7d" opacity="0.58"/>
+  <rect x="30" y="20" width="3.6" height="24" rx="1.8" fill="#5e8a7d"/>
+  <rect x="36.5" y="27" width="3.4" height="16" rx="1.7" fill="#5e8a7d" opacity="0.6"/>
+  <rect x="43" y="32" width="3.4" height="10" rx="1.7" fill="#5e8a7d" opacity="0.34"/>
+  <path d="M13 35.5 C20 21.5, 27 45.5, 34 28.5 C39 16.5, 45 33.5, 50.5 23.5" fill="none" stroke="#83ca90" stroke-width="2.8" stroke-linecap="round"/>
+  <path d="M46 13 L47.5 17.2 L51.7 18.7 L47.5 20.2 L46 24.4 L44.5 20.2 L40.3 18.7 L44.5 17.2 Z" fill="#5e8a7d"/>
+</svg>`;
+      }
+      if (kind === 'iter-mini') {
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512" color="#5e8a7d">
+  <path d="M32 6.5 C50 6.5 57.5 14 57.5 32 C57.5 50 50 57.5 32 57.5 C14 57.5 6.5 50 6.5 32 C6.5 14 14 6.5 32 6.5 Z" fill="none" stroke="currentColor" stroke-width="4"/>
+  <rect x="20" y="26" width="4.5" height="17" rx="2.25" fill="currentColor" opacity="0.48"/>
+  <rect x="29.5" y="18" width="4.5" height="26" rx="2.25" fill="currentColor" opacity="0.72"/>
+  <rect x="39" y="28" width="4.5" height="14" rx="2.25" fill="currentColor" opacity="0.48"/>
+  <path d="M14 35 C21 21, 28 45, 35 28 C40 16, 45 32, 50 23" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M46 12.5 L47.6 17 L52 18.5 L47.6 20 L46 24.5 L44.4 20 L40 18.5 L44.4 17 Z" fill="currentColor"/>
+</svg>`;
+      }
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 64" width="520" height="128">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#83ca90"/>
+      <stop offset="100%" stop-color="#4e7a6d"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="52" height="52" rx="15" fill="url(#g)"/>
+  <rect x="17" y="34" width="3.5" height="9" rx="1.75" fill="#fff" opacity="0.55"/>
+  <rect x="23.5" y="25" width="3.5" height="18" rx="1.75" fill="#fff" opacity="0.78"/>
+  <rect x="30" y="20" width="3.5" height="24" rx="1.75" fill="#fff"/>
+  <rect x="36.5" y="27" width="3.5" height="16" rx="1.75" fill="#fff" opacity="0.82"/>
+  <rect x="43" y="32" width="3.5" height="10" rx="1.75" fill="#fff" opacity="0.6"/>
+  <path d="M13 36 C20 22, 27 46, 34 29 C39 17, 45 34, 51 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M46 13 L47.4 17.1 L51.5 18.5 L47.4 19.9 L46 24 L44.6 19.9 L40.5 18.5 L44.6 17.1 Z" fill="#fff"/>
+  <text x="72" y="39" font-family="Plus Jakarta Sans, system-ui, sans-serif" font-size="28" font-weight="600" letter-spacing="-0.8" fill="#16214e">samplevis</text>
+</svg>`;
+    }
+
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    document.querySelectorAll('[data-download-svg]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const kind = btn.dataset.downloadSvg;
+        triggerDownload(new Blob([buildStandaloneSvg(kind)], { type: 'image/svg+xml' }), `samplevis-${kind}.svg`);
+      });
+    });
+
+    document.querySelectorAll('[data-download-png]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const kind = btn.dataset.downloadPng;
+        const img = new Image();
+        const url = URL.createObjectURL(new Blob([buildStandaloneSvg(kind)], { type: 'image/svg+xml' }));
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 512;
+          canvas.height = 512;
+          canvas.getContext('2d').drawImage(img, 0, 0, 512, 512);
+          URL.revokeObjectURL(url);
+          canvas.toBlob((blob) => {
+            if (blob) triggerDownload(blob, `samplevis-${kind}.png`);
+          }, 'image/png');
+        };
+        img.src = url;
+      });
+    });
+  </script>
+</body>
+</html>
